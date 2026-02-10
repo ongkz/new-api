@@ -16,12 +16,13 @@ version: '3.4' # For compatibility with older Docker versions
 
 services:
   new-api:
-    image: calciumion/new-api:latest
+#    image: calciumion/new-api:latest
+    build: .
     container_name: new-api
     restart: always
     command: --log-dir /app/logs
-    ports:
-      - "3000:3000"
+#    ports:
+#      - "3000:3000"
     volumes:
       - ./data:/data
       - ./logs:/app/logs
@@ -53,14 +54,14 @@ services:
 
   redis:
     image: redis:latest
-    container_name: redis
+    container_name: redis-dev
     restart: always
     networks:
       - new-api-network
 
   postgres:
     image: postgres:15
-    container_name: postgres
+    container_name: postgres-dev
     restart: always
     environment:
       POSTGRES_USER: root

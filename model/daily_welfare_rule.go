@@ -9,15 +9,22 @@ import (
 )
 
 type DailyWelfareRule struct {
-	Id          int       `json:"id" gorm:"primaryKey"`
-	Enabled     bool      `json:"enabled" gorm:"default:false;index"`
-	Model       string    `json:"model" gorm:"type:varchar(255);not null;index"`
-	StartMinute int       `json:"start_minute" gorm:"not null;index"`
-	EndMinute   int       `json:"end_minute" gorm:"not null;index"`
-	Value       float64   `json:"value" gorm:"not null"`
-	Priority    int64     `json:"priority" gorm:"bigint;default:0;index"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Id          int     `json:"id" gorm:"primaryKey"`
+	Enabled     bool    `json:"enabled" gorm:"default:false;index"`
+	Model       string  `json:"model" gorm:"type:varchar(255);not null;index"`
+	StartMinute int     `json:"start_minute" gorm:"not null;index"`
+	EndMinute   int     `json:"end_minute" gorm:"not null;index"`
+	Value       float64 `json:"value" gorm:"not null"`
+	// Optional overrides for ratio-based billing. Nil means "use existing ratio settings".
+	CompletionRatio      *float64  `json:"completion_ratio,omitempty"`
+	CacheRatio           *float64  `json:"cache_ratio,omitempty"`
+	CreateCacheRatio     *float64  `json:"create_cache_ratio,omitempty"`
+	ImageRatio           *float64  `json:"image_ratio,omitempty"`
+	AudioRatio           *float64  `json:"audio_ratio,omitempty"`
+	AudioCompletionRatio *float64  `json:"audio_completion_ratio,omitempty"`
+	Priority             int64     `json:"priority" gorm:"bigint;default:0;index"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 func (DailyWelfareRule) TableName() string {
@@ -40,6 +47,24 @@ func (r *DailyWelfareRule) Validate() error {
 	}
 	if r.Value < 0 {
 		return errors.New("value must be >= 0")
+	}
+	if r.CompletionRatio != nil && *r.CompletionRatio < 0 {
+		return errors.New("completion ratio must be >= 0")
+	}
+	if r.CacheRatio != nil && *r.CacheRatio < 0 {
+		return errors.New("cache ratio must be >= 0")
+	}
+	if r.CreateCacheRatio != nil && *r.CreateCacheRatio < 0 {
+		return errors.New("create cache ratio must be >= 0")
+	}
+	if r.ImageRatio != nil && *r.ImageRatio < 0 {
+		return errors.New("image ratio must be >= 0")
+	}
+	if r.AudioRatio != nil && *r.AudioRatio < 0 {
+		return errors.New("audio ratio must be >= 0")
+	}
+	if r.AudioCompletionRatio != nil && *r.AudioCompletionRatio < 0 {
+		return errors.New("audio completion ratio must be >= 0")
 	}
 	return nil
 }
