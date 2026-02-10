@@ -170,6 +170,24 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.POST("/migrate_console_setting", controller.MigrateConsoleSetting) // 用于迁移检测的旧键，下个版本会删除
 		}
 
+		errorReplaceRuleRoute := apiRouter.Group("/error-replace-rule")
+		errorReplaceRuleRoute.Use(middleware.RootAuth())
+		{
+			errorReplaceRuleRoute.GET("/", controller.ListErrorReplaceRules)
+			errorReplaceRuleRoute.POST("/", controller.CreateErrorReplaceRule)
+			errorReplaceRuleRoute.PUT("/:id", controller.UpdateErrorReplaceRule)
+			errorReplaceRuleRoute.DELETE("/:id", controller.DeleteErrorReplaceRule)
+		}
+
+		dailyWelfareRuleRoute := apiRouter.Group("/daily-welfare-rule")
+		dailyWelfareRuleRoute.Use(middleware.RootAuth())
+		{
+			dailyWelfareRuleRoute.GET("/", controller.ListDailyWelfareRules)
+			dailyWelfareRuleRoute.POST("/", controller.CreateDailyWelfareRule)
+			dailyWelfareRuleRoute.PUT("/:id", controller.UpdateDailyWelfareRule)
+			dailyWelfareRuleRoute.DELETE("/:id", controller.DeleteDailyWelfareRule)
+		}
+
 		// Custom OAuth provider management (admin only)
 		customOAuthRoute := apiRouter.Group("/custom-oauth-provider")
 		customOAuthRoute.Use(middleware.RootAuth())

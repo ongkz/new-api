@@ -87,8 +87,17 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	defer func() {
 		if newAPIError != nil {
-			logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.Error()))
-			newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
+			rule, applied := service.ApplyErrorReplaceRules(c, newAPIError)
+			if applied && rule != nil {
+				logger.LogInfo(c, fmt.Sprintf("error replace rule hit: id=%d, name=%s, status_code=%d", rule.Id, rule.Name, newAPIError.StatusCode))
+			}
+
+			publicMessage := newAPIError.Error()
+			if !applied && service.ShouldHideUpstreamErrorDetails(newAPIError) {
+				publicMessage = "上游响应解析失败"
+			}
+			newAPIError.SetPublicMessage(common.MessageWithRequestId(publicMessage, requestId))
+			logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.MaskSensitiveErrorWithStatusCode()))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())

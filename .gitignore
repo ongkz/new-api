@@ -18,6 +18,8 @@ tiktoken_cache
 .gocache
 .gomodcache/
 .cache
+.serena/
+go*.linux-amd64.tar.gz
 web/bun.lock
 plans
 
