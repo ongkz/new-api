@@ -26,10 +26,13 @@ For commercial licensing, please contact support@quantumnous.com
     InputNumber,
     Modal,
     Popconfirm,
+    Radio,
+    RadioGroup,
     Select,
   Space,
   Switch,
   Table,
+  Tag,
   Typography,
 } from '@douyinfe/semi-ui';
   import {
@@ -59,6 +62,24 @@ const formatMinuteToTime = (minute) => {
   return `${hh}:${mm}`;
 };
 
+const ratioToTokenPricePer1M = (ratio) => {
+  const n = Number(ratio);
+  if (!Number.isFinite(n)) return null;
+  return n * 2;
+};
+
+const tokenPricePer1MToRatio = (price) => {
+  const n = Number(price);
+  if (!Number.isFinite(n)) return null;
+  return n / 2;
+};
+
+const safeFixed = (value, digits = 4) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '-';
+  return n.toFixed(digits);
+};
+
 const DailyWelfareSetting = () => {
   const { t } = useTranslation();
 
@@ -74,6 +95,9 @@ const DailyWelfareSetting = () => {
   const [modelRatioMap, setModelRatioMap] = useState({});
   const [modelMetaLoading, setModelMetaLoading] = useState(false);
   const [modelMeta, setModelMeta] = useState(null);
+  const [timeMetaLoading, setTimeMetaLoading] = useState(false);
+  const [timeMeta, setTimeMeta] = useState(null);
+  const [pricingSubMode, setPricingSubMode] = useState('token-price'); // ratio | token-price
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
@@ -83,6 +107,8 @@ const DailyWelfareSetting = () => {
     start_minute: 0,
     end_minute: 0,
     value: null,
+    input_price_1m: null,
+    output_price_1m: null,
     completion_ratio: undefined,
     cache_ratio: undefined,
     create_cache_ratio: undefined,
@@ -138,7 +164,26 @@ const DailyWelfareSetting = () => {
     setLoading(false);
   };
 
-  const fetchModelMeta = async (model, { applyDefaultValue = false } = {}) => {
+  const fetchTimeMeta = async () => {
+    setTimeMetaLoading(true);
+    try {
+      const res = await API.get('/api/daily-welfare-rule/time_meta');
+      if (res.data.success) {
+        setTimeMeta(res.data.data || null);
+      } else {
+        setTimeMeta(null);
+      }
+    } catch {
+      setTimeMeta(null);
+    } finally {
+      setTimeMetaLoading(false);
+    }
+  };
+
+  const fetchModelMeta = async (
+    model,
+    { applyDefaultValue = false, applyDefaultRatios = false } = {}
+  ) => {
     const currentModel = String(model || '').trim();
     if (!currentModel) {
       setModelMeta(null);
@@ -156,7 +201,22 @@ const DailyWelfareSetting = () => {
           const defaultValue = meta.use_price ? meta.model_price : meta.model_ratio;
           setFormValues((v) => {
             if (String(v.model || '').trim() !== currentModel) return v;
-            return { ...v, value: defaultValue };
+            const next = { ...v, value: defaultValue };
+            if (meta.use_price) {
+              next.input_price_1m = null;
+              next.output_price_1m = null;
+              next.completion_ratio = undefined;
+              return next;
+            }
+
+            next.input_price_1m = ratioToTokenPricePer1M(meta.model_ratio);
+            next.output_price_1m = ratioToTokenPricePer1M(
+              meta.model_ratio * (meta.completion_ratio || 0)
+            );
+            if (applyDefaultRatios) {
+              next.completion_ratio = meta.completion_ratio;
+            }
+            return next;
           });
         }
       } else {
@@ -300,6 +360,7 @@ const DailyWelfareSetting = () => {
   useEffect(() => {
     fetchList(1, pageSize);
     fetchModelOptions();
+    fetchTimeMeta();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -314,14 +375,48 @@ const DailyWelfareSetting = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalVisible, formValues.model]);
 
+  useEffect(() => {
+    if (!modalVisible) return;
+    if (!modelMeta || modelMeta.use_price) return;
+    setFormValues((v) => {
+      const ratio =
+        v.value === null || v.value === undefined || v.value === ''
+          ? null
+          : Number(v.value);
+      if (!Number.isFinite(ratio)) return v;
+
+      const next = { ...v };
+      if (next.input_price_1m === null || next.input_price_1m === undefined || next.input_price_1m === '') {
+        next.input_price_1m = ratioToTokenPricePer1M(ratio);
+      }
+      const usedCompletionRatio =
+        next.completion_ratio !== null &&
+        next.completion_ratio !== undefined &&
+        next.completion_ratio !== ''
+          ? Number(next.completion_ratio)
+          : Number(modelMeta.completion_ratio) || 1;
+
+      if (next.completion_ratio === null || next.completion_ratio === undefined || next.completion_ratio === '') {
+        next.completion_ratio = usedCompletionRatio;
+      }
+      if (next.output_price_1m === null || next.output_price_1m === undefined || next.output_price_1m === '') {
+        next.output_price_1m = ratioToTokenPricePer1M(ratio * usedCompletionRatio);
+      }
+      return next;
+    });
+  }, [modalVisible, modelMeta]);
+
   const openAddModal = () => {
     setEditingRule(null);
+    setPricingSubMode('token-price');
     setFormValues({
       enabled: true,
       model: '',
       start_minute: 0,
       end_minute: 0,
       value: null,
+      input_price_1m: null,
+      output_price_1m: null,
       completion_ratio: undefined,
       cache_ratio: undefined,
       create_cache_ratio: undefined,
@@ -336,12 +431,20 @@ const DailyWelfareSetting = () => {
 
   const openEditModal = (rule) => {
     setEditingRule(rule);
+    setPricingSubMode('token-price');
+    const inputPrice = ratioToTokenPricePer1M(rule?.value);
+    const outputPrice =
+      rule?.completion_ratio != null
+        ? ratioToTokenPricePer1M((rule?.value || 0) * rule.completion_ratio)
+        : null;
     setFormValues({
       enabled: !!rule?.enabled,
       model: rule?.model ?? '',
       start_minute: rule?.start_minute ?? 0,
       end_minute: rule?.end_minute ?? 0,
       value: rule?.value ?? null,
+      input_price_1m: inputPrice,
+      output_price_1m: outputPrice,
       completion_ratio: rule?.completion_ratio,
       cache_ratio: rule?.cache_ratio,
       create_cache_ratio: rule?.create_cache_ratio,
@@ -369,27 +472,93 @@ const DailyWelfareSetting = () => {
       showError(t('请选择结束时间'));
       return false;
     }
-    if (
-      formValues.value === null ||
-      formValues.value === undefined ||
-      formValues.value === ''
-    ) {
-      showError(
-        selectedPricingMeta.type === 'price'
-          ? t('请输入合法的福利固定价格')
-          : t('请输入合法的福利输入倍率')
-      );
+
+    const effectiveUsePrice = modelMeta
+      ? !!modelMeta.use_price
+      : selectedPricingMeta.type === 'price';
+    const effectiveIsRatio = modelMeta
+      ? !modelMeta.use_price
+      : selectedPricingMeta.type === 'ratio';
+
+    if (!effectiveUsePrice && !effectiveIsRatio) {
+      showError(t('请先在「分组与模型定价设置」中配置模型价格或倍率'));
       return false;
     }
-    if (!Number.isFinite(Number(formValues.value)) || Number(formValues.value) < 0) {
-      if (selectedPricingMeta.type === 'price') {
+
+    if (effectiveUsePrice) {
+      if (
+        formValues.value === null ||
+        formValues.value === undefined ||
+        formValues.value === ''
+      ) {
         showError(t('请输入合法的福利固定价格'));
-      } else if (selectedPricingMeta.type === 'ratio') {
-        showError(t('请输入合法的福利输入倍率'));
-      } else {
-        showError(t('请输入合法的福利价格/倍率'));
+        return false;
       }
-      return false;
+      if (!Number.isFinite(Number(formValues.value)) || Number(formValues.value) < 0) {
+        showError(t('请输入合法的福利固定价格'));
+        return false;
+      }
+	    } else if (effectiveIsRatio) {
+	      if (pricingSubMode === 'token-price') {
+	        if (
+	          formValues.input_price_1m === null ||
+	          formValues.input_price_1m === undefined ||
+	          formValues.input_price_1m === ''
+	        ) {
+	          showError(t('请输入合法的福利输入价格'));
+	          return false;
+	        }
+	        if (
+	          formValues.output_price_1m === null ||
+	          formValues.output_price_1m === undefined ||
+	          formValues.output_price_1m === ''
+	        ) {
+	          showError(t('请输入合法的福利输出价格'));
+	          return false;
+	        }
+	        const inputPrice = Number(formValues.input_price_1m);
+	        const outputPrice = Number(formValues.output_price_1m);
+	        if (!Number.isFinite(inputPrice) || inputPrice < 0) {
+	          showError(t('请输入合法的福利输入价格'));
+	          return false;
+        }
+        if (!Number.isFinite(outputPrice) || outputPrice < 0) {
+          showError(t('请输入合法的福利输出价格'));
+          return false;
+        }
+        if (inputPrice === 0 && outputPrice !== 0) {
+          showError(t('输入价格为 0 时，输出价格也必须为 0'));
+          return false;
+        }
+      } else {
+        if (
+          formValues.value === null ||
+          formValues.value === undefined ||
+          formValues.value === ''
+        ) {
+          showError(t('请输入合法的福利输入倍率'));
+          return false;
+        }
+        if (!Number.isFinite(Number(formValues.value)) || Number(formValues.value) < 0) {
+          showError(t('请输入合法的福利输入倍率'));
+          return false;
+        }
+        if (
+          formValues.completion_ratio === null ||
+          formValues.completion_ratio === undefined ||
+          formValues.completion_ratio === ''
+        ) {
+          showError(t('请输入合法的福利补全倍率'));
+          return false;
+        }
+        if (
+          !Number.isFinite(Number(formValues.completion_ratio)) ||
+          Number(formValues.completion_ratio) < 0
+        ) {
+          showError(t('请输入合法的福利补全倍率'));
+          return false;
+        }
+      }
     }
 
     const validateOptionalRatio = (val, label) => {
@@ -463,13 +632,37 @@ const DailyWelfareSetting = () => {
       if (!Number.isFinite(n)) return undefined;
       return n;
     };
+
+    const effectiveUsePrice = modelMeta
+      ? !!modelMeta.use_price
+      : selectedPricingMeta.type === 'price';
+    const effectiveIsRatio = modelMeta
+      ? !modelMeta.use_price
+      : selectedPricingMeta.type === 'ratio';
+
+    let finalValue = Number(formValues.value);
+    let finalCompletionRatio = toOptionalNumber(formValues.completion_ratio);
+    if (effectiveIsRatio && pricingSubMode === 'token-price') {
+      const inputPrice = Number(formValues.input_price_1m);
+      const outputPrice = Number(formValues.output_price_1m);
+      const ratio = tokenPricePer1MToRatio(inputPrice);
+      if (ratio != null) {
+        finalValue = ratio;
+      }
+      if (inputPrice === 0) {
+        finalCompletionRatio = 0;
+      } else {
+        finalCompletionRatio = outputPrice / inputPrice;
+      }
+    }
+
     const payload = {
       enabled: formValues.enabled,
       model: formValues.model,
       start_minute: validated.startMinute,
       end_minute: validated.endMinute,
-      value: Number(formValues.value),
-      completion_ratio: toOptionalNumber(formValues.completion_ratio),
+      value: effectiveUsePrice ? Number(formValues.value) : finalValue,
+      completion_ratio: effectiveUsePrice ? undefined : finalCompletionRatio,
       cache_ratio: toOptionalNumber(formValues.cache_ratio),
       create_cache_ratio: toOptionalNumber(formValues.create_cache_ratio),
       image_ratio: toOptionalNumber(formValues.image_ratio),
@@ -569,6 +762,23 @@ const DailyWelfareSetting = () => {
         render: (v) => formatMinuteToTime(v),
       },
       {
+        title: t('状态'),
+        key: 'status',
+        width: 120,
+        render: (_, record) => {
+          if (!record?.enabled) {
+            return <Tag color='grey'>{t('未启用')}</Tag>;
+          }
+          if (record?.effective_now) {
+            return <Tag color='green'>{t('生效中')}</Tag>;
+          }
+          if (record?.in_window_now) {
+            return <Tag color='yellow'>{t('已命中(被覆盖)')}</Tag>;
+          }
+          return <Tag color='grey'>{t('未生效')}</Tag>;
+        },
+      },
+      {
         title: t('福利价格/倍率'),
         dataIndex: 'value',
         key: 'value',
@@ -582,10 +792,20 @@ const DailyWelfareSetting = () => {
               </Text>
             );
           }
-          const parts = [`${t('输入')}: ${String(v)}`];
-          if (record?.completion_ratio != null) {
-            parts.push(`${t('补全')}: ${String(record.completion_ratio)}`);
-          }
+          const inputPrice = ratioToTokenPricePer1M(v);
+          const completionRatio = record?.completion_ratio;
+          const outputPrice =
+            completionRatio != null
+              ? ratioToTokenPricePer1M((Number(v) || 0) * Number(completionRatio))
+              : null;
+          const parts = [
+            `${t('输入')}: ${safeFixed(v)}（$${safeFixed(inputPrice)}/${t('1M tokens')}）`,
+            completionRatio != null
+              ? `${t('输出')}: $${safeFixed(outputPrice)}/${t('1M tokens')}（${t('补全倍率')}: ${safeFixed(
+                  completionRatio
+                )}）`
+              : `${t('输出')}: ${t('继承')}`,
+          ];
           if (record?.cache_ratio != null) {
             parts.push(`${t('缓存读')}: ${String(record.cache_ratio)}`);
           }
@@ -635,6 +855,13 @@ const DailyWelfareSetting = () => {
     [t, currentPage, pageSize, items, modelPriceMap, modelRatioMap]
   );
 
+  const effectiveUsePrice = modelMeta
+    ? !!modelMeta.use_price
+    : selectedPricingMeta.type === 'price';
+  const effectiveIsRatio = modelMeta
+    ? !modelMeta.use_price
+    : selectedPricingMeta.type === 'ratio';
+
   return (
     <Card
       title={t('每日福利设置')}
@@ -645,6 +872,7 @@ const DailyWelfareSetting = () => {
             onClick={() => {
               fetchList(currentPage, pageSize);
               fetchModelOptions();
+              fetchTimeMeta();
             }}
           >
             {t('刷新')}
@@ -655,6 +883,19 @@ const DailyWelfareSetting = () => {
         </Space>
       }
     >
+      <Text
+        type='tertiary'
+        size='small'
+        style={{ display: 'block', marginBottom: 12 }}
+      >
+        {timeMetaLoading
+          ? t('正在获取服务器时间…')
+          : timeMeta
+            ? `${t('服务器时间')}: ${timeMeta.now_local || timeMeta.now || '-'}${
+                timeMeta.timezone ? ` (${timeMeta.timezone})` : ''
+              }`
+            : t('每日福利按服务器时间判断（可通过环境变量 TZ 设置时区）')}
+      </Text>
       <Table
         columns={columns}
         dataSource={items}
@@ -706,6 +947,8 @@ const DailyWelfareSetting = () => {
                   ...v,
                   model: value,
                   value: null,
+                  input_price_1m: null,
+                  output_price_1m: null,
                   completion_ratio: undefined,
                   cache_ratio: undefined,
                   create_cache_ratio: undefined,
@@ -713,7 +956,10 @@ const DailyWelfareSetting = () => {
                   audio_ratio: undefined,
                   audio_completion_ratio: undefined,
                 }));
-                await fetchModelMeta(value, { applyDefaultValue: true });
+                await fetchModelMeta(value, {
+                  applyDefaultValue: true,
+                  applyDefaultRatios: !editingRule?.id,
+                });
               }}
               optionList={modelOptionList}
               filter={selectFilter}
@@ -742,11 +988,17 @@ const DailyWelfareSetting = () => {
                   : modelMeta
                     ? modelMeta.use_price
                       ? `${t('计费方式')}: ${t('固定价格')}（${t('优先级高于模型倍率')}）；${t('当前固定价格')}: ${modelMeta.model_price}`
-                      : `${t('计费方式')}: ${t('倍率')}；${t('当前输入倍率')}: ${modelMeta.model_ratio}；${t('当前补全倍率')}: ${modelMeta.completion_ratio}；${t('提示缓存倍率')}: ${modelMeta.cache_ratio}；${t('缓存创建倍率')}: ${modelMeta.create_cache_ratio}`
+                      : `${t('计费方式')}: ${t('按量计费')}；${t('当前输入价格')}: $${safeFixed(
+                          ratioToTokenPricePer1M(modelMeta.model_ratio)
+                        )}/${t('1M tokens')}；${t('当前输出价格')}: $${safeFixed(
+                          ratioToTokenPricePer1M(
+                            modelMeta.model_ratio * (modelMeta.completion_ratio || 0)
+                          )
+                        )}/${t('1M tokens')}（${t('输入倍率')}: ${modelMeta.model_ratio}；${t('补全倍率')}: ${modelMeta.completion_ratio}）`
                     : selectedPricingMeta.type === 'price'
                       ? `${t('计费方式')}: ${t('固定价格')}（${t('优先级高于模型倍率')}）；${t('当前固定价格')}: ${selectedPricingMeta.currentValue ?? '-'}`
                       : selectedPricingMeta.type === 'ratio'
-                        ? `${t('计费方式')}: ${t('倍率')}；${t('当前输入倍率')}: ${selectedPricingMeta.currentValue ?? '-'}`
+                        ? `${t('计费方式')}: ${t('按量计费')}；${t('当前输入倍率')}: ${selectedPricingMeta.currentValue ?? '-'}`
                         : `${t('计费方式')}: ${t('未知')}`}
                 {modelMeta?.formatted_model &&
                 modelMeta.formatted_model !== String(formValues.model || '').trim()
@@ -816,62 +1068,200 @@ const DailyWelfareSetting = () => {
               />
             </Space>
           </Form.Slot>
-          <Form.Slot
-            label={
-              selectedPricingMeta.type === 'price'
-                ? t('福利固定价格')
-                : selectedPricingMeta.type === 'ratio'
-                  ? t('福利输入倍率')
-                  : t('福利价格/倍率')
-            }
-          >
-            <InputNumber
-              value={formValues.value}
-              onChange={(value) => setFormValues((v) => ({ ...v, value }))}
-              min={0}
-              placeholder={
-                selectedPricingMeta.type === 'price'
-                  ? t('例如 0.1（USD/次）')
-                  : selectedPricingMeta.type === 'ratio'
-                    ? t('例如 37.5')
-                    : undefined
-              }
-              style={{ width: '100%' }}
-            />
-            <Text
-              type='tertiary'
-              size='small'
-              style={{ display: 'block', marginTop: 6 }}
-            >
-              {selectedPricingMeta.type === 'price'
-                ? t('与「模型固定价格」一致：一次调用消耗多少刀（USD/次），优先级高于模型倍率。')
-                : selectedPricingMeta.type === 'ratio'
-                  ? t('与「模型倍率」一致：按 token 计费时使用的输入倍率。')
-                  : t('请先在「分组与模型定价设置」中配置模型价格或倍率。')}
-            </Text>
-          </Form.Slot>
-          {selectedPricingMeta.type === 'ratio' ? (
-            <Collapse keepDOM>
-              <Collapse.Panel header={t('高级倍率覆写（可选）')} itemKey='advanced'>
-                <Form.Slot label={t('福利补全倍率（输出）')}>
-                  <InputNumber
-                    value={formValues.completion_ratio}
-                    onChange={(value) =>
-                      setFormValues((v) => ({ ...v, completion_ratio: value }))
-                    }
-                    min={0}
-                    placeholder={
-                      modelMeta && !modelMeta.use_price
-                        ? String(modelMeta.completion_ratio)
-                        : undefined
-                    }
-                    style={{ width: '100%' }}
-                  />
-                  <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
-                    {t('留空表示使用现有补全倍率')}
-                  </Text>
-                </Form.Slot>
-                <Form.Slot label={t('福利提示缓存倍率')}>
+          {effectiveUsePrice ? (
+            <Form.Slot label={t('福利固定价格')}>
+              <InputNumber
+                value={formValues.value}
+                onChange={(value) => setFormValues((v) => ({ ...v, value }))}
+                min={0}
+                placeholder={t('例如 0.1（USD/次）')}
+                style={{ width: '100%' }}
+              />
+              <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                {t('与「模型固定价格」一致：一次调用消耗多少刀（USD/次），优先级高于模型倍率。')}
+              </Text>
+            </Form.Slot>
+          ) : effectiveIsRatio ? (
+            <>
+              <Form.Section text={t('价格设置方式')}>
+                <div style={{ marginBottom: 12 }}>
+                  <RadioGroup
+                    type='button'
+                    value={pricingSubMode}
+                    onChange={(e) => {
+                      const nextMode = e.target.value;
+                      setPricingSubMode(nextMode);
+                      setFormValues((v) => {
+                        const next = { ...v };
+                        const ratio = Number.isFinite(Number(v.value))
+                          ? Number(v.value)
+                          : Number(modelMeta?.model_ratio) || 0;
+                        const completionRatio =
+                          v.completion_ratio !== null &&
+                          v.completion_ratio !== undefined &&
+                          v.completion_ratio !== ''
+                            ? Number(v.completion_ratio)
+                            : Number(modelMeta?.completion_ratio) || 1;
+
+                        if (nextMode === 'token-price') {
+                          next.input_price_1m = ratioToTokenPricePer1M(ratio);
+                          next.output_price_1m = ratioToTokenPricePer1M(
+                            ratio * completionRatio
+                          );
+                        } else {
+                          const inputPrice = Number(v.input_price_1m);
+                          const outputPrice = Number(v.output_price_1m);
+                          const newRatio = tokenPricePer1MToRatio(inputPrice);
+                          if (newRatio != null) {
+                            next.value = newRatio;
+                          }
+                          if (
+                            Number.isFinite(inputPrice) &&
+                            inputPrice > 0 &&
+                            Number.isFinite(outputPrice) &&
+                            outputPrice >= 0
+                          ) {
+                            next.completion_ratio = outputPrice / inputPrice;
+                          }
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    <Radio value='token-price'>{t('按价格设置')}</Radio>
+                    <Radio value='ratio'>{t('按倍率设置')}</Radio>
+                  </RadioGroup>
+                </div>
+              </Form.Section>
+
+              {pricingSubMode === 'token-price' ? (
+                <>
+                  <Form.Slot label={`${t('福利输入价格')}（${t('$/1M tokens')}）`}>
+                    <InputNumber
+                      value={formValues.input_price_1m}
+                      onChange={(value) => {
+                        setFormValues((v) => {
+                          const next = { ...v, input_price_1m: value };
+                          const ratio = tokenPricePer1MToRatio(value);
+                          if (ratio != null) next.value = ratio;
+                          const inputPrice = Number(value);
+                          const outputPrice = Number(v.output_price_1m);
+                          if (
+                            Number.isFinite(inputPrice) &&
+                            inputPrice > 0 &&
+                            Number.isFinite(outputPrice) &&
+                            outputPrice >= 0
+                          ) {
+                            next.completion_ratio = outputPrice / inputPrice;
+                          } else if (inputPrice === 0 && outputPrice === 0) {
+                            next.completion_ratio = 0;
+                          }
+                          return next;
+                        });
+                      }}
+                      min={0}
+                      placeholder={
+                        modelMeta && !modelMeta.use_price
+                          ? safeFixed(ratioToTokenPricePer1M(modelMeta.model_ratio))
+                          : undefined
+                      }
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Slot>
+                  <Form.Slot label={`${t('福利输出价格')}（${t('$/1M tokens')}）`}>
+                    <InputNumber
+                      value={formValues.output_price_1m}
+                      onChange={(value) => {
+                        setFormValues((v) => {
+                          const next = { ...v, output_price_1m: value };
+                          const inputPrice = Number(v.input_price_1m);
+                          const outputPrice = Number(value);
+                          if (
+                            Number.isFinite(inputPrice) &&
+                            inputPrice > 0 &&
+                            Number.isFinite(outputPrice) &&
+                            outputPrice >= 0
+                          ) {
+                            next.completion_ratio = outputPrice / inputPrice;
+                          } else if (inputPrice === 0 && outputPrice === 0) {
+                            next.completion_ratio = 0;
+                          }
+                          return next;
+                        });
+                      }}
+                      min={0}
+                      placeholder={
+                        modelMeta && !modelMeta.use_price
+                          ? safeFixed(
+                              ratioToTokenPricePer1M(
+                                modelMeta.model_ratio * (modelMeta.completion_ratio || 0)
+                              )
+                            )
+                          : undefined
+                      }
+                      style={{ width: '100%' }}
+                    />
+                    <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                      {t('系统内部使用倍率计费：输入倍率 = 输入价格/2；补全倍率 = 输出价格/输入价格。')}
+                    </Text>
+                  </Form.Slot>
+                </>
+              ) : (
+                <>
+                  <Form.Slot label={t('福利输入倍率')}>
+                    <InputNumber
+                      value={formValues.value}
+                      onChange={(value) =>
+                        setFormValues((v) => ({
+                          ...v,
+                          value,
+                          input_price_1m: ratioToTokenPricePer1M(value),
+                          output_price_1m:
+                            v.completion_ratio != null
+                              ? ratioToTokenPricePer1M(
+                                  (Number(value) || 0) * Number(v.completion_ratio)
+                                )
+                              : v.output_price_1m,
+                        }))
+                      }
+                      min={0}
+                      placeholder={t('例如 1.25（≈ $2.5/1M tokens）')}
+                      style={{ width: '100%' }}
+                    />
+                    <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                      {t('倍率 1 = $2/1M tokens（不含分组倍率）。')}
+                    </Text>
+                  </Form.Slot>
+                  <Form.Slot label={t('福利补全倍率（输出）')}>
+                    <InputNumber
+                      value={formValues.completion_ratio}
+                      onChange={(value) =>
+                        setFormValues((v) => ({
+                          ...v,
+                          completion_ratio: value,
+                          output_price_1m:
+                            v.value != null
+                              ? ratioToTokenPricePer1M(
+                                  (Number(v.value) || 0) * Number(value)
+                                )
+                              : v.output_price_1m,
+                        }))
+                      }
+                      min={0}
+                      placeholder={
+                        modelMeta && !modelMeta.use_price
+                          ? String(modelMeta.completion_ratio)
+                          : undefined
+                      }
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Slot>
+                </>
+              )}
+
+              <Collapse keepDOM>
+                <Collapse.Panel header={t('高级倍率覆写（可选）')} itemKey='advanced'>
+                  <Form.Slot label={t('福利提示缓存倍率')}>
                   <InputNumber
                     value={formValues.cache_ratio}
                     onChange={(value) =>
@@ -964,9 +1354,14 @@ const DailyWelfareSetting = () => {
                     {t('留空表示使用现有音频补全倍率')}
                   </Text>
                 </Form.Slot>
-              </Collapse.Panel>
-            </Collapse>
-          ) : null}
+                </Collapse.Panel>
+              </Collapse>
+            </>
+          ) : (
+            <Text type='tertiary' size='small'>
+              {t('请先在「分组与模型定价设置」中配置模型价格或倍率。')}
+            </Text>
+          )}
           <Form.InputNumber
             field='priority'
             label={t('优先级')}

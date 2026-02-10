@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -60,12 +61,45 @@ func parseMinuteOfDay(value string) (int, error) {
 	return hour*60 + minute, nil
 }
 
+func isInDailyWindow(nowMinute int, startMinute int, endMinute int) bool {
+	if startMinute == endMinute {
+		return true
+	}
+	if startMinute < endMinute {
+		return nowMinute >= startMinute && nowMinute < endMinute
+	}
+	return nowMinute >= startMinute || nowMinute < endMinute
+}
+
 func ListDailyWelfareRules(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	rules, total, err := model.GetDailyWelfareRulePage(pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	now := time.Now()
+	nowMinute := now.Hour()*60 + now.Minute()
+	activeRuleByModel := make(map[string]*model.DailyWelfareRule, 16)
+	for _, rule := range rules {
+		if rule == nil || !rule.Enabled {
+			continue
+		}
+		if !isInDailyWindow(nowMinute, rule.StartMinute, rule.EndMinute) {
+			continue
+		}
+		rule.InWindowNow = true
+		if _, ok := activeRuleByModel[rule.Model]; !ok {
+			activeRule, hit := service.GetDailyWelfareRuleForModel(c, rule.Model, now)
+			if hit && activeRule != nil {
+				activeRuleByModel[rule.Model] = activeRule
+			} else {
+				activeRuleByModel[rule.Model] = nil
+			}
+		}
+		if activeRuleByModel[rule.Model] != nil && activeRuleByModel[rule.Model].Id == rule.Id {
+			rule.EffectiveNow = true
+		}
 	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(rules)
@@ -261,5 +295,22 @@ func GetDailyWelfareRuleModelMeta(c *gin.Context) {
 		ImageRatio:           imageRatio,
 		AudioRatio:           audioRatio,
 		AudioCompletionRatio: audioCompletionRatio,
+	})
+}
+
+type DailyWelfareTimeMeta struct {
+	Now         string `json:"now"`
+	NowLocal    string `json:"now_local"`
+	Timezone    string `json:"timezone"`
+	MinuteOfDay int    `json:"minute_of_day"`
+}
+
+func GetDailyWelfareTimeMeta(c *gin.Context) {
+	now := time.Now()
+	common.ApiSuccess(c, DailyWelfareTimeMeta{
+		Now:         now.Format(time.RFC3339),
+		NowLocal:    now.Format("2006-01-02 15:04:05"),
+		Timezone:    now.Location().String(),
+		MinuteOfDay: now.Hour()*60 + now.Minute(),
 	})
 }

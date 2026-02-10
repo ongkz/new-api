@@ -25,6 +25,10 @@ type DailyWelfareRule struct {
 	Priority             int64     `json:"priority" gorm:"bigint;default:0;index"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
+
+	// Computed fields (not persisted)
+	InWindowNow  bool `json:"in_window_now" gorm:"-"`
+	EffectiveNow bool `json:"effective_now" gorm:"-"`
 }
 
 func (DailyWelfareRule) TableName() string {
