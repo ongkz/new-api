@@ -29,11 +29,12 @@ import {
   Table,
   Typography,
 } from '@douyinfe/semi-ui';
-import {
-  IconDelete,
-  IconEdit,
-  IconRefresh,
-} from '@douyinfe/semi-icons';
+  import {
+    IconDelete,
+    IconEdit,
+    IconPlus,
+    IconRefresh,
+  } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 
 import { API, showError, showSuccess } from '../../helpers';
@@ -306,8 +307,8 @@ const ErrorReplaceSetting = () => {
           <Button icon={<IconRefresh />} onClick={() => fetchList(currentPage, pageSize)}>
             {t('刷新')}
           </Button>
-          <Button type='primary' onClick={openAddModal}>
-            {t('+ 添加规则')}
+          <Button type='primary' icon={<IconPlus />} onClick={openAddModal}>
+            {t('添加规则')}
           </Button>
         </Space>
       }
@@ -353,6 +354,8 @@ const ErrorReplaceSetting = () => {
             label={t('规则名称')}
             value={formValues.name}
             onChange={(value) => setFormValues((v) => ({ ...v, name: value }))}
+            placeholder={t('例如：参数错误')}
+            extraText={t('仅用于管理端识别，建议简短描述')}
             required
           />
           <Form.Switch
@@ -367,6 +370,7 @@ const ErrorReplaceSetting = () => {
             field='match_type'
             label={t('匹配类型')}
             value={formValues.match_type}
+            placeholder={t('请选择匹配类型')}
             optionList={MATCH_TYPE_OPTIONS.map((o) => ({
               value: o.value,
               label: t(o.label),
@@ -377,6 +381,11 @@ const ErrorReplaceSetting = () => {
                 match_type: value,
               }))
             }
+            style={{ width: '100%' }}
+            dropdownStyle={{ width: '100%', maxWidth: '100%' }}
+            extraText={t(
+              '内容：pattern 为子串匹配；状态码：仅匹配 HTTP 状态码；状态码+内容：两者都满足。'
+            )}
             required
           />
           {(formValues.match_type === 'status_code' ||
@@ -390,6 +399,8 @@ const ErrorReplaceSetting = () => {
               }
               min={100}
               max={599}
+              placeholder={500}
+              style={{ width: '100%' }}
             />
           )}
           <Form.TextArea
@@ -400,6 +411,11 @@ const ErrorReplaceSetting = () => {
               setFormValues((v) => ({ ...v, pattern: value }))
             }
             autosize={{ minRows: 2, maxRows: 6 }}
+            placeholder={t('例如：MODEL_CAPACITY_EXHAUSTED')}
+            extraText={t(
+              '匹配文本包含 status_code=<HTTP状态码>、上游原始 body、解析出的 error.message 等。'
+            )}
+            disabled={formValues.match_type === 'status_code'}
           />
           <Form.TextArea
             field='replacement_message'
@@ -409,6 +425,8 @@ const ErrorReplaceSetting = () => {
               setFormValues((v) => ({ ...v, replacement_message: value }))
             }
             autosize={{ minRows: 2, maxRows: 6 }}
+            placeholder={t('例如：429了老铁')}
+            extraText={t('命中后将返回给客户端的错误 message 替换为该文本')}
             required
           />
           <Form.InputNumber
@@ -418,6 +436,9 @@ const ErrorReplaceSetting = () => {
             onChange={(value) =>
               setFormValues((v) => ({ ...v, priority: value }))
             }
+            placeholder={0}
+            style={{ width: '100%' }}
+            extraText={t('优先级越大越优先')}
           />
         </Form>
       </Modal>

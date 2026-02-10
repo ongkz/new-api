@@ -410,6 +410,21 @@ func GetModelRatio(name string) (float64, bool, string) {
 	return ratio, true, name
 }
 
+// IsModelRatioConfigured returns true if the model has an explicitly configured ratio.
+// It does NOT fall back to SelfUseModeEnabled defaults.
+func IsModelRatioConfigured(name string) bool {
+	name = FormatMatchingModelName(name)
+	if _, ok := modelRatioMap.Get(name); ok {
+		return true
+	}
+	if strings.HasSuffix(name, CompactModelSuffix) {
+		if _, ok := modelRatioMap.Get(CompactWildcardModelKey); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func DefaultModelRatio2JSONString() string {
 	jsonBytes, err := common.Marshal(defaultModelRatio)
 	if err != nil {

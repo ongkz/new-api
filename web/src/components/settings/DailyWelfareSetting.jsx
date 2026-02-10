@@ -17,26 +17,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Button,
-  Card,
-  Form,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Select,
+ import React, { useEffect, useMemo, useState } from 'react';
+  import {
+    Button,
+    Card,
+    Collapse,
+    Form,
+    InputNumber,
+    Modal,
+    Popconfirm,
+    Select,
   Space,
   Switch,
   Table,
   Typography,
 } from '@douyinfe/semi-ui';
-import {
-  IconDelete,
-  IconEdit,
-  IconRefresh,
-} from '@douyinfe/semi-icons';
-import { useTranslation } from 'react-i18next';
+  import {
+    IconDelete,
+    IconEdit,
+    IconPlus,
+    IconRefresh,
+  } from '@douyinfe/semi-icons';
+  import { useTranslation } from 'react-i18next';
 
 import { API, showError, showSuccess } from '../../helpers';
 import { selectFilter } from '../../helpers/utils';
@@ -70,6 +72,8 @@ const DailyWelfareSetting = () => {
   const [modelOptions, setModelOptions] = useState([]);
   const [modelPriceMap, setModelPriceMap] = useState({});
   const [modelRatioMap, setModelRatioMap] = useState({});
+  const [modelMetaLoading, setModelMetaLoading] = useState(false);
+  const [modelMeta, setModelMeta] = useState(null);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
@@ -78,27 +82,42 @@ const DailyWelfareSetting = () => {
     model: '',
     start_minute: 0,
     end_minute: 0,
-    value: 0,
+    value: null,
+    completion_ratio: undefined,
+    cache_ratio: undefined,
+    create_cache_ratio: undefined,
+    image_ratio: undefined,
+    audio_ratio: undefined,
+    audio_completion_ratio: undefined,
     priority: 0,
   });
 
-  const timeOptions = useMemo(() => {
-    const options = [];
-    for (let minute = 0; minute < 24 * 60; minute += 1) {
-      options.push({
-        label: formatMinuteToTime(minute),
-        value: minute,
-      });
-    }
-    return options;
-  }, []);
+  const hourOptions = useMemo(
+    () =>
+      Array.from({ length: 24 }, (_, h) => ({
+        label: String(h).padStart(2, '0'),
+        value: h,
+      })),
+    []
+  );
+  const minuteOptions = useMemo(
+    () =>
+      Array.from({ length: 60 }, (_, m) => ({
+        label: String(m).padStart(2, '0'),
+        value: m,
+      })),
+    []
+  );
 
   const modelOptionList = useMemo(() => {
     const current = String(formValues.model || '').trim();
     if (!current) return modelOptions;
     if (modelOptions.some((o) => o?.value === current)) return modelOptions;
-    return [{ label: current, value: current }, ...modelOptions];
-  }, [formValues.model, modelOptions]);
+    return [
+      { label: `${current}（${t('不可选')}）`, value: current, disabled: true },
+      ...modelOptions,
+    ];
+  }, [formValues.model, modelOptions, t]);
 
   const fetchList = async (page = currentPage, size = pageSize) => {
     setLoading(true);
@@ -119,6 +138,39 @@ const DailyWelfareSetting = () => {
     setLoading(false);
   };
 
+  const fetchModelMeta = async (model, { applyDefaultValue = false } = {}) => {
+    const currentModel = String(model || '').trim();
+    if (!currentModel) {
+      setModelMeta(null);
+      return;
+    }
+    setModelMetaLoading(true);
+    try {
+      const res = await API.get(
+        `/api/daily-welfare-rule/model_meta?model=${encodeURIComponent(currentModel)}`
+      );
+      if (res.data.success) {
+        const meta = res.data.data || null;
+        setModelMeta(meta);
+        if (applyDefaultValue && meta) {
+          const defaultValue = meta.use_price ? meta.model_price : meta.model_ratio;
+          setFormValues((v) => {
+            if (String(v.model || '').trim() !== currentModel) return v;
+            return { ...v, value: defaultValue };
+          });
+        }
+      } else {
+        showError(res.data.message);
+        setModelMeta(null);
+      }
+    } catch (e) {
+      showError(t('获取模型定价信息失败'));
+      setModelMeta(null);
+    } finally {
+      setModelMetaLoading(false);
+    }
+  };
+
   const fetchModelOptions = async () => {
     setModelOptionsLoading(true);
     try {
@@ -126,15 +178,12 @@ const DailyWelfareSetting = () => {
         API.get('/api/channel/models_enabled'),
         API.get('/api/option/'),
       ]);
-
-      const modelSet = new Set();
       let nextModelPriceMap = {};
       let nextModelRatioMap = {};
 
       const enabledModels = enabledModelsRes?.data?.success
         ? enabledModelsRes.data.data || []
         : [];
-      enabledModels.forEach((m) => modelSet.add(m));
 
       if (optionsRes?.data?.success) {
         const options = optionsRes.data.data || [];
@@ -153,14 +202,25 @@ const DailyWelfareSetting = () => {
 
         nextModelPriceMap = parseJSONMap(findOptionValue('ModelPrice'));
         nextModelRatioMap = parseJSONMap(findOptionValue('ModelRatio'));
-
-        Object.keys(nextModelPriceMap).forEach((k) => modelSet.add(k));
-        Object.keys(nextModelRatioMap).forEach((k) => modelSet.add(k));
       }
 
-      const list = Array.from(modelSet)
+      const list = (enabledModels || [])
         .map((m) => String(m || '').trim())
         .filter(Boolean)
+        .filter((modelName) => {
+          const formattedModelName = formatMatchingModelName(modelName);
+          return (
+            formattedModelName &&
+            (Object.prototype.hasOwnProperty.call(
+              nextModelPriceMap,
+              formattedModelName
+            ) ||
+              Object.prototype.hasOwnProperty.call(
+                nextModelRatioMap,
+                formattedModelName
+              ))
+          );
+        })
         .sort((a, b) => a.localeCompare(b));
 
       setModelOptions(list.map((m) => ({ label: m, value: m })));
@@ -198,6 +258,9 @@ const DailyWelfareSetting = () => {
     }
     if (n.startsWith('gpt-4o-gizmo')) {
       n = 'gpt-4o-gizmo-*';
+    }
+    if (n.endsWith('-openai-compact')) {
+      n = '*-openai-compact';
     }
 
     return n;
@@ -240,6 +303,17 @@ const DailyWelfareSetting = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!modalVisible) return;
+    const currentModel = String(formValues.model || '').trim();
+    if (!currentModel) {
+      setModelMeta(null);
+      return;
+    }
+    fetchModelMeta(currentModel, { applyDefaultValue: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalVisible, formValues.model]);
+
   const openAddModal = () => {
     setEditingRule(null);
     setFormValues({
@@ -247,9 +321,16 @@ const DailyWelfareSetting = () => {
       model: '',
       start_minute: 0,
       end_minute: 0,
-      value: 0,
+      value: null,
+      completion_ratio: undefined,
+      cache_ratio: undefined,
+      create_cache_ratio: undefined,
+      image_ratio: undefined,
+      audio_ratio: undefined,
+      audio_completion_ratio: undefined,
       priority: 0,
     });
+    setModelMeta(null);
     setModalVisible(true);
   };
 
@@ -260,9 +341,16 @@ const DailyWelfareSetting = () => {
       model: rule?.model ?? '',
       start_minute: rule?.start_minute ?? 0,
       end_minute: rule?.end_minute ?? 0,
-      value: rule?.value ?? 0,
+      value: rule?.value ?? null,
+      completion_ratio: rule?.completion_ratio,
+      cache_ratio: rule?.cache_ratio,
+      create_cache_ratio: rule?.create_cache_ratio,
+      image_ratio: rule?.image_ratio,
+      audio_ratio: rule?.audio_ratio,
+      audio_completion_ratio: rule?.audio_completion_ratio,
       priority: rule?.priority ?? 0,
     });
+    setModelMeta(null);
     setModalVisible(true);
   };
 
@@ -282,30 +370,111 @@ const DailyWelfareSetting = () => {
       return false;
     }
     if (
-      !Number.isFinite(Number(formValues.value)) ||
-      Number(formValues.value) < 0
+      formValues.value === null ||
+      formValues.value === undefined ||
+      formValues.value === ''
     ) {
+      showError(
+        selectedPricingMeta.type === 'price'
+          ? t('请输入合法的福利固定价格')
+          : t('请输入合法的福利输入倍率')
+      );
+      return false;
+    }
+    if (!Number.isFinite(Number(formValues.value)) || Number(formValues.value) < 0) {
       if (selectedPricingMeta.type === 'price') {
         showError(t('请输入合法的福利固定价格'));
       } else if (selectedPricingMeta.type === 'ratio') {
-        showError(t('请输入合法的福利倍率'));
+        showError(t('请输入合法的福利输入倍率'));
       } else {
         showError(t('请输入合法的福利价格/倍率'));
       }
       return false;
     }
+
+    const validateOptionalRatio = (val, label) => {
+      if (val === null || val === undefined || val === '') return true;
+      const n = Number(val);
+      if (!Number.isFinite(n) || n < 0) {
+        showError(label);
+        return false;
+      }
+      return true;
+    };
+
+    if (
+      !validateOptionalRatio(
+        formValues.completion_ratio,
+        t('请输入合法的福利补全倍率')
+      )
+    ) {
+      return false;
+    }
+    if (
+      !validateOptionalRatio(
+        formValues.cache_ratio,
+        t('请输入合法的福利提示缓存倍率')
+      )
+    ) {
+      return false;
+    }
+    if (
+      !validateOptionalRatio(
+        formValues.create_cache_ratio,
+        t('请输入合法的福利缓存创建倍率')
+      )
+    ) {
+      return false;
+    }
+    if (
+      !validateOptionalRatio(
+        formValues.image_ratio,
+        t('请输入合法的福利图片输入倍率')
+      )
+    ) {
+      return false;
+    }
+    if (
+      !validateOptionalRatio(
+        formValues.audio_ratio,
+        t('请输入合法的福利音频倍率')
+      )
+    ) {
+      return false;
+    }
+    if (
+      !validateOptionalRatio(
+        formValues.audio_completion_ratio,
+        t('请输入合法的福利音频补全倍率')
+      )
+    ) {
+      return false;
+    }
+
     return { startMinute, endMinute };
   };
 
   const submit = async () => {
     const validated = validateForm();
     if (!validated) return;
+    const toOptionalNumber = (val) => {
+      if (val === null || val === undefined || val === '') return undefined;
+      const n = Number(val);
+      if (!Number.isFinite(n)) return undefined;
+      return n;
+    };
     const payload = {
       enabled: formValues.enabled,
       model: formValues.model,
       start_minute: validated.startMinute,
       end_minute: validated.endMinute,
       value: Number(formValues.value),
+      completion_ratio: toOptionalNumber(formValues.completion_ratio),
+      cache_ratio: toOptionalNumber(formValues.cache_ratio),
+      create_cache_ratio: toOptionalNumber(formValues.create_cache_ratio),
+      image_ratio: toOptionalNumber(formValues.image_ratio),
+      audio_ratio: toOptionalNumber(formValues.audio_ratio),
+      audio_completion_ratio: toOptionalNumber(formValues.audio_completion_ratio),
       priority: Number(formValues.priority) || 0,
     };
     try {
@@ -351,6 +520,12 @@ const DailyWelfareSetting = () => {
         start_minute: rule.start_minute,
         end_minute: rule.end_minute,
         value: rule.value,
+        completion_ratio: rule.completion_ratio,
+        cache_ratio: rule.cache_ratio,
+        create_cache_ratio: rule.create_cache_ratio,
+        image_ratio: rule.image_ratio,
+        audio_ratio: rule.audio_ratio,
+        audio_completion_ratio: rule.audio_completion_ratio,
         priority: rule.priority,
       });
       if (res.data.success) {
@@ -400,16 +575,36 @@ const DailyWelfareSetting = () => {
         width: 160,
         render: (v, record) => {
           const meta = getPricingMeta(record?.model);
-          const prefix =
-            meta.type === 'price'
-              ? t('价格')
-              : meta.type === 'ratio'
-                ? t('倍率')
-                : '';
-          const display = prefix ? `${prefix}: ${String(v)}` : String(v);
+          if (meta.type === 'price') {
+            return (
+              <Text ellipsis={{ showTooltip: true }} style={{ maxWidth: 140 }}>
+                {`${t('价格')}: ${String(v)}`}
+              </Text>
+            );
+          }
+          const parts = [`${t('输入')}: ${String(v)}`];
+          if (record?.completion_ratio != null) {
+            parts.push(`${t('补全')}: ${String(record.completion_ratio)}`);
+          }
+          if (record?.cache_ratio != null) {
+            parts.push(`${t('缓存读')}: ${String(record.cache_ratio)}`);
+          }
+          if (record?.create_cache_ratio != null) {
+            parts.push(`${t('缓存写')}: ${String(record.create_cache_ratio)}`);
+          }
+          if (record?.image_ratio != null) {
+            parts.push(`${t('图片')}: ${String(record.image_ratio)}`);
+          }
+          if (record?.audio_ratio != null) {
+            parts.push(`${t('音频')}: ${String(record.audio_ratio)}`);
+          }
+          if (record?.audio_completion_ratio != null) {
+            parts.push(`${t('音频补全')}: ${String(record.audio_completion_ratio)}`);
+          }
+          const display = parts.join('；');
           return (
             <Text ellipsis={{ showTooltip: true }} style={{ maxWidth: 140 }}>
-              {display}
+              {display || '-'}
             </Text>
           );
         },
@@ -454,8 +649,8 @@ const DailyWelfareSetting = () => {
           >
             {t('刷新')}
           </Button>
-          <Button type='primary' onClick={openAddModal}>
-            {t('+ 添加规则')}
+          <Button type='primary' icon={<IconPlus />} onClick={openAddModal}>
+            {t('添加规则')}
           </Button>
         </Space>
       }
@@ -506,9 +701,20 @@ const DailyWelfareSetting = () => {
             <Select
               placeholder={t('请选择模型')}
               value={formValues.model}
-              onChange={(value) =>
-                setFormValues((v) => ({ ...v, model: value }))
-              }
+              onChange={async (value) => {
+                setFormValues((v) => ({
+                  ...v,
+                  model: value,
+                  value: null,
+                  completion_ratio: undefined,
+                  cache_ratio: undefined,
+                  create_cache_ratio: undefined,
+                  image_ratio: undefined,
+                  audio_ratio: undefined,
+                  audio_completion_ratio: undefined,
+                }));
+                await fetchModelMeta(value, { applyDefaultValue: true });
+              }}
               optionList={modelOptionList}
               filter={selectFilter}
               autoClearSearchValue={false}
@@ -518,68 +724,104 @@ const DailyWelfareSetting = () => {
               loading={modelOptionsLoading}
               style={{ width: '100%' }}
             />
+            <Text
+              type='tertiary'
+              size='small'
+              style={{ display: 'block', marginTop: 6 }}
+            >
+              {t('仅展示已上架且已配置定价的模型')}
+            </Text>
             {formValues.model ? (
               <Text
                 type='tertiary'
                 size='small'
                 style={{ display: 'block', marginTop: 6 }}
               >
-                {selectedPricingMeta.type === 'price'
-                  ? t('计费方式：固定价格（优先级高于模型倍率）')
-                  : selectedPricingMeta.type === 'ratio'
-                    ? t('计费方式：倍率')
-                    : t('计费方式：未知')}
-                {selectedPricingMeta.type === 'price'
-                  ? `；${t('当前固定价格')}: ${
-                      selectedPricingMeta.currentValue ?? '-'
-                    }`
-                  : selectedPricingMeta.type === 'ratio'
-                    ? `；${t('当前倍率')}: ${selectedPricingMeta.currentValue ?? '-'}`
-                    : ''}
-                {selectedPricingMeta.formattedModelName &&
-                selectedPricingMeta.formattedModelName !==
-                  String(formValues.model || '').trim()
-                  ? `；${t('归一化后模型')}: ${selectedPricingMeta.formattedModelName}`
+                {modelMetaLoading
+                  ? t('正在加载模型定价信息…')
+                  : modelMeta
+                    ? modelMeta.use_price
+                      ? `${t('计费方式')}: ${t('固定价格')}（${t('优先级高于模型倍率')}）；${t('当前固定价格')}: ${modelMeta.model_price}`
+                      : `${t('计费方式')}: ${t('倍率')}；${t('当前输入倍率')}: ${modelMeta.model_ratio}；${t('当前补全倍率')}: ${modelMeta.completion_ratio}；${t('提示缓存倍率')}: ${modelMeta.cache_ratio}；${t('缓存创建倍率')}: ${modelMeta.create_cache_ratio}`
+                    : selectedPricingMeta.type === 'price'
+                      ? `${t('计费方式')}: ${t('固定价格')}（${t('优先级高于模型倍率')}）；${t('当前固定价格')}: ${selectedPricingMeta.currentValue ?? '-'}`
+                      : selectedPricingMeta.type === 'ratio'
+                        ? `${t('计费方式')}: ${t('倍率')}；${t('当前输入倍率')}: ${selectedPricingMeta.currentValue ?? '-'}`
+                        : `${t('计费方式')}: ${t('未知')}`}
+                {modelMeta?.formatted_model &&
+                modelMeta.formatted_model !== String(formValues.model || '').trim()
+                  ? `；${t('归一化后模型')}: ${modelMeta.formatted_model}`
                   : ''}
               </Text>
             ) : null}
           </Form.Slot>
           <Form.Slot label={t('开始时间')}>
-            <Select
-              placeholder={t('请选择开始时间')}
-              value={formValues.start_minute}
-              onChange={(value) =>
-                setFormValues((v) => ({ ...v, start_minute: Number(value) }))
-              }
-              optionList={timeOptions}
-              filter={selectFilter}
-              autoClearSearchValue={false}
-              searchPosition='dropdown'
-              searchable
-              style={{ width: '100%' }}
-            />
+            <Space style={{ width: '100%' }}>
+              <Select
+                placeholder={t('小时')}
+                value={Math.floor((Number(formValues.start_minute) || 0) / 60)}
+                optionList={hourOptions}
+                style={{ width: '50%' }}
+                onChange={(h) =>
+                  setFormValues((v) => ({
+                    ...v,
+                    start_minute:
+                      Number(h) * 60 + ((Number(v.start_minute) || 0) % 60),
+                  }))
+                }
+              />
+              <Select
+                placeholder={t('分钟')}
+                value={(Number(formValues.start_minute) || 0) % 60}
+                optionList={minuteOptions}
+                style={{ width: '50%' }}
+                onChange={(m) =>
+                  setFormValues((v) => ({
+                    ...v,
+                    start_minute:
+                      Math.floor((Number(v.start_minute) || 0) / 60) * 60 +
+                      Number(m),
+                  }))
+                }
+              />
+            </Space>
           </Form.Slot>
           <Form.Slot label={t('结束时间')}>
-            <Select
-              placeholder={t('请选择结束时间')}
-              value={formValues.end_minute}
-              onChange={(value) =>
-                setFormValues((v) => ({ ...v, end_minute: Number(value) }))
-              }
-              optionList={timeOptions}
-              filter={selectFilter}
-              autoClearSearchValue={false}
-              searchPosition='dropdown'
-              searchable
-              style={{ width: '100%' }}
-            />
+            <Space style={{ width: '100%' }}>
+              <Select
+                placeholder={t('小时')}
+                value={Math.floor((Number(formValues.end_minute) || 0) / 60)}
+                optionList={hourOptions}
+                style={{ width: '50%' }}
+                onChange={(h) =>
+                  setFormValues((v) => ({
+                    ...v,
+                    end_minute: Number(h) * 60 + ((Number(v.end_minute) || 0) % 60),
+                  }))
+                }
+              />
+              <Select
+                placeholder={t('分钟')}
+                value={(Number(formValues.end_minute) || 0) % 60}
+                optionList={minuteOptions}
+                style={{ width: '50%' }}
+                onChange={(m) =>
+                  setFormValues((v) => ({
+                    ...v,
+                    end_minute:
+                      Math.floor((Number(v.end_minute) || 0) / 60) * 60 +
+                      Number(m),
+                  }))
+                }
+              />
+            </Space>
           </Form.Slot>
           <Form.Slot
             label={
               selectedPricingMeta.type === 'price'
                 ? t('福利固定价格')
                 : selectedPricingMeta.type === 'ratio'
-                  ? t('福利倍率')
+                  ? t('福利输入倍率')
                   : t('福利价格/倍率')
             }
           >
@@ -604,10 +846,127 @@ const DailyWelfareSetting = () => {
               {selectedPricingMeta.type === 'price'
                 ? t('与「模型固定价格」一致：一次调用消耗多少刀（USD/次），优先级高于模型倍率。')
                 : selectedPricingMeta.type === 'ratio'
-                  ? t('与「模型倍率」一致：按 token 计费时使用的倍率。')
+                  ? t('与「模型倍率」一致：按 token 计费时使用的输入倍率。')
                   : t('请先在「分组与模型定价设置」中配置模型价格或倍率。')}
             </Text>
           </Form.Slot>
+          {selectedPricingMeta.type === 'ratio' ? (
+            <Collapse keepDOM>
+              <Collapse.Panel header={t('高级倍率覆写（可选）')} itemKey='advanced'>
+                <Form.Slot label={t('福利补全倍率（输出）')}>
+                  <InputNumber
+                    value={formValues.completion_ratio}
+                    onChange={(value) =>
+                      setFormValues((v) => ({ ...v, completion_ratio: value }))
+                    }
+                    min={0}
+                    placeholder={
+                      modelMeta && !modelMeta.use_price
+                        ? String(modelMeta.completion_ratio)
+                        : undefined
+                    }
+                    style={{ width: '100%' }}
+                  />
+                  <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                    {t('留空表示使用现有补全倍率')}
+                  </Text>
+                </Form.Slot>
+                <Form.Slot label={t('福利提示缓存倍率')}>
+                  <InputNumber
+                    value={formValues.cache_ratio}
+                    onChange={(value) =>
+                      setFormValues((v) => ({ ...v, cache_ratio: value }))
+                    }
+                    min={0}
+                    placeholder={
+                      modelMeta && !modelMeta.use_price
+                        ? String(modelMeta.cache_ratio)
+                        : undefined
+                    }
+                    style={{ width: '100%' }}
+                  />
+                  <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                    {t('留空表示使用现有提示缓存倍率')}
+                  </Text>
+                </Form.Slot>
+                <Form.Slot label={t('福利缓存创建倍率')}>
+                  <InputNumber
+                    value={formValues.create_cache_ratio}
+                    onChange={(value) =>
+                      setFormValues((v) => ({ ...v, create_cache_ratio: value }))
+                    }
+                    min={0}
+                    placeholder={
+                      modelMeta && !modelMeta.use_price
+                        ? String(modelMeta.create_cache_ratio)
+                        : undefined
+                    }
+                    style={{ width: '100%' }}
+                  />
+                  <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                    {t('留空表示使用现有缓存创建倍率；1h 缓存创建倍率按固定乘法自动计算（当前为 1.6x）')}
+                  </Text>
+                </Form.Slot>
+                <Form.Slot label={t('福利图片输入倍率（仅部分模型支持）')}>
+                  <InputNumber
+                    value={formValues.image_ratio}
+                    onChange={(value) =>
+                      setFormValues((v) => ({ ...v, image_ratio: value }))
+                    }
+                    min={0}
+                    placeholder={
+                      modelMeta && !modelMeta.use_price
+                        ? String(modelMeta.image_ratio)
+                        : undefined
+                    }
+                    style={{ width: '100%' }}
+                  />
+                  <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                    {t('留空表示使用现有图片输入倍率')}
+                  </Text>
+                </Form.Slot>
+                <Form.Slot label={t('福利音频倍率（仅部分模型支持）')}>
+                  <InputNumber
+                    value={formValues.audio_ratio}
+                    onChange={(value) =>
+                      setFormValues((v) => ({ ...v, audio_ratio: value }))
+                    }
+                    min={0}
+                    placeholder={
+                      modelMeta && !modelMeta.use_price
+                        ? String(modelMeta.audio_ratio)
+                        : undefined
+                    }
+                    style={{ width: '100%' }}
+                  />
+                  <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                    {t('留空表示使用现有音频倍率')}
+                  </Text>
+                </Form.Slot>
+                <Form.Slot label={t('福利音频补全倍率（仅部分模型支持）')}>
+                  <InputNumber
+                    value={formValues.audio_completion_ratio}
+                    onChange={(value) =>
+                      setFormValues((v) => ({
+                        ...v,
+                        audio_completion_ratio: value,
+                      }))
+                    }
+                    min={0}
+                    placeholder={
+                      modelMeta && !modelMeta.use_price
+                        ? String(modelMeta.audio_completion_ratio)
+                        : undefined
+                    }
+                    style={{ width: '100%' }}
+                  />
+                  <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 6 }}>
+                    {t('留空表示使用现有音频补全倍率')}
+                  </Text>
+                </Form.Slot>
+              </Collapse.Panel>
+            </Collapse>
+          ) : null}
           <Form.InputNumber
             field='priority'
             label={t('优先级')}
