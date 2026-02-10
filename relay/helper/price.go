@@ -72,31 +72,53 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		if meta.MaxTokens != 0 {
 			preConsumedTokens += meta.MaxTokens
 		}
-		if welfareHit && welfareRule != nil {
-			modelRatio = welfareRule.Value
-		} else {
-			var success bool
-			var matchName string
-			modelRatio, success, matchName = ratio_setting.GetModelRatio(info.OriginModelName)
-			if !success {
-				acceptUnsetRatio := false
-				if info.UserSetting.AcceptUnsetRatioModel {
-					acceptUnsetRatio = true
-				}
-				if !acceptUnsetRatio {
-					return types.PriceData{}, fmt.Errorf("模型 %s 倍率或价格未配置，请联系管理员设置或开始自用模式；Model %s ratio or price not set, please set or start self-use mode", matchName, matchName)
-				}
+		var success bool
+		var matchName string
+		modelRatio, success, matchName = ratio_setting.GetModelRatio(info.OriginModelName)
+		if !success {
+			acceptUnsetRatio := false
+			if info.UserSetting.AcceptUnsetRatioModel {
+				acceptUnsetRatio = true
+			}
+			if !acceptUnsetRatio {
+				return types.PriceData{}, fmt.Errorf("模型 %s 倍率或价格未配置，请联系管理员设置或开始自用模式；Model %s ratio or price not set, please set or start self-use mode", matchName, matchName)
 			}
 		}
+		if welfareHit && welfareRule != nil {
+			modelRatio = welfareRule.Value
+		}
+
 		completionRatio = ratio_setting.GetCompletionRatio(info.OriginModelName)
 		cacheRatio, _ = ratio_setting.GetCacheRatio(info.OriginModelName)
 		cacheCreationRatio, _ = ratio_setting.GetCreateCacheRatio(info.OriginModelName)
-		cacheCreationRatio5m = cacheCreationRatio
-		// 固定1h和5min缓存写入价格的比例
-		cacheCreationRatio1h = cacheCreationRatio * claudeCacheCreation1hMultiplier
 		imageRatio, _ = ratio_setting.GetImageRatio(info.OriginModelName)
 		audioRatio = ratio_setting.GetAudioRatio(info.OriginModelName)
 		audioCompletionRatio = ratio_setting.GetAudioCompletionRatio(info.OriginModelName)
+
+		if welfareHit && welfareRule != nil {
+			if welfareRule.CompletionRatio != nil {
+				completionRatio = *welfareRule.CompletionRatio
+			}
+			if welfareRule.CacheRatio != nil {
+				cacheRatio = *welfareRule.CacheRatio
+			}
+			if welfareRule.CreateCacheRatio != nil {
+				cacheCreationRatio = *welfareRule.CreateCacheRatio
+			}
+			if welfareRule.ImageRatio != nil {
+				imageRatio = *welfareRule.ImageRatio
+			}
+			if welfareRule.AudioRatio != nil {
+				audioRatio = *welfareRule.AudioRatio
+			}
+			if welfareRule.AudioCompletionRatio != nil {
+				audioCompletionRatio = *welfareRule.AudioCompletionRatio
+			}
+		}
+
+		cacheCreationRatio5m = cacheCreationRatio
+		// 固定1h和5min缓存写入价格的比例
+		cacheCreationRatio1h = cacheCreationRatio * claudeCacheCreation1hMultiplier
 		ratio := modelRatio * groupRatioInfo.GroupRatio
 		preConsumedQuota = int(float64(preConsumedTokens) * ratio)
 	} else {

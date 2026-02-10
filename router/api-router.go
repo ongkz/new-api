@@ -183,6 +183,7 @@ func SetApiRouter(router *gin.Engine) {
 		dailyWelfareRuleRoute.Use(middleware.RootAuth())
 		{
 			dailyWelfareRuleRoute.GET("/", controller.ListDailyWelfareRules)
+			dailyWelfareRuleRoute.GET("/model_meta", controller.GetDailyWelfareRuleModelMeta)
 			dailyWelfareRuleRoute.POST("/", controller.CreateDailyWelfareRule)
 			dailyWelfareRuleRoute.PUT("/:id", controller.UpdateDailyWelfareRule)
 			dailyWelfareRuleRoute.DELETE("/:id", controller.DeleteDailyWelfareRule)
