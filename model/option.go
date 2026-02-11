@@ -213,6 +213,8 @@ func UpdateOption(key string, value string) error {
 func updateOptionMap(key string, value string) (err error) {
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
+	oldValue, existed := common.OptionMap[key]
+	changed := !existed || oldValue != value
 	common.OptionMap[key] = value
 
 	// 检查是否是模型配置 - 使用更规范的方式处理
@@ -511,6 +513,12 @@ func updateOptionMap(key string, value string) (err error) {
 		// WaffoPayMethods is read directly from OptionMap via setting.GetWaffoPayMethods().
 		// The value is already stored in OptionMap at the top of this function (line: common.OptionMap[key] = value).
 		// No additional in-memory variable to update.
+	}
+	if changed {
+		switch key {
+		case "ModelRatio", "ModelPrice", "CompletionRatio":
+			InvalidatePricingCache()
+		}
 	}
 	return err
 }
