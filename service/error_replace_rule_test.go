@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/types"
@@ -74,6 +75,60 @@ func TestFindFirstMatchedErrorReplaceRule_Examples(t *testing.T) {
 	rule = FindFirstMatchedErrorReplaceRule(rules, 500, "status_code=500, unexpected end of JSON input")
 	if rule == nil || rule.Id != 3 {
 		t.Fatalf("expected rule 3, got %#v", rule)
+	}
+}
+
+func TestApplyErrorReplaceRules_UsesCachedRulesAndSetsPublicMessage(t *testing.T) {
+	InvalidateErrorReplaceRuleCache()
+	t.Cleanup(InvalidateErrorReplaceRuleCache)
+
+	rules := []*model.ErrorReplaceRule{
+		{
+			Id:                 1,
+			Name:               "容量不足",
+			Enabled:            true,
+			MatchType:          model.ErrorReplaceMatchTypeContent,
+			Pattern:            "MODEL_CAPACITY_EXHAUSTED",
+			ReplacementMessage: "429了老铁",
+			Priority:           10,
+		},
+	}
+	errorReplaceRuleCacheVal.Store(&errorReplaceRuleCache{loadedAt: time.Now(), rules: rules})
+
+	newAPIError := types.NewErrorWithStatusCode(errors.New("MODEL_CAPACITY_EXHAUSTED"), types.ErrorCodeBadResponseStatusCode, 500)
+	rule, applied := ApplyErrorReplaceRules(nil, newAPIError)
+	if !applied || rule == nil || rule.Id != 1 {
+		t.Fatalf("expected rule applied, got applied=%v rule=%#v", applied, rule)
+	}
+	if newAPIError.Error() != "429了老铁" {
+		t.Fatalf("expected public message replaced, got: %q", newAPIError.Error())
+	}
+}
+
+func TestApplyErrorReplaceRules_NoMatchDoesNotChangeMessage(t *testing.T) {
+	InvalidateErrorReplaceRuleCache()
+	t.Cleanup(InvalidateErrorReplaceRuleCache)
+
+	rules := []*model.ErrorReplaceRule{
+		{
+			Id:                 1,
+			Name:               "容量不足",
+			Enabled:            true,
+			MatchType:          model.ErrorReplaceMatchTypeContent,
+			Pattern:            "MODEL_CAPACITY_EXHAUSTED",
+			ReplacementMessage: "429了老铁",
+			Priority:           10,
+		},
+	}
+	errorReplaceRuleCacheVal.Store(&errorReplaceRuleCache{loadedAt: time.Now(), rules: rules})
+
+	newAPIError := types.NewErrorWithStatusCode(errors.New("some other error"), types.ErrorCodeBadResponseStatusCode, 500)
+	_, applied := ApplyErrorReplaceRules(nil, newAPIError)
+	if applied {
+		t.Fatalf("expected rule not applied")
+	}
+	if newAPIError.Error() != "some other error" {
+		t.Fatalf("expected message unchanged, got: %q", newAPIError.Error())
 	}
 }
 
