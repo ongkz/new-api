@@ -87,6 +87,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	defer func() {
 		if newAPIError != nil {
+			originalErrorForAdmin := newAPIError.MaskSensitiveErrorWithStatusCode()
+
 			rule, applied := service.ApplyErrorReplaceRules(c, newAPIError)
 			if applied && rule != nil {
 				logger.LogInfo(c, fmt.Sprintf("error replace rule hit: id=%d, name=%s, status_code=%d", rule.Id, rule.Name, newAPIError.StatusCode))
@@ -97,6 +99,48 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 				publicMessage = "上游响应解析失败"
 			}
 			newAPIError.SetPublicMessage(common.MessageWithRequestId(publicMessage, requestId))
+
+			if constant.ErrorLogEnabled && types.IsRecordErrorLog(newAPIError) {
+				userId := c.GetInt("id")
+				tokenName := c.GetString("token_name")
+				modelName := c.GetString("original_model")
+				tokenId := c.GetInt("token_id")
+				userGroup := c.GetString("group")
+				channelId := c.GetInt("channel_id")
+				if channelId != 0 {
+					other := make(map[string]interface{})
+					if c.Request != nil && c.Request.URL != nil {
+						other["request_path"] = c.Request.URL.Path
+					}
+					other["error_type"] = newAPIError.GetErrorType()
+					other["error_code"] = newAPIError.GetErrorCode()
+					other["status_code"] = newAPIError.StatusCode
+					other["channel_id"] = channelId
+					other["channel_name"] = c.GetString("channel_name")
+					other["channel_type"] = c.GetInt("channel_type")
+					adminInfo := make(map[string]interface{})
+					adminInfo["use_channel"] = c.GetStringSlice("use_channel")
+					adminInfo["original_error"] = originalErrorForAdmin
+					if applied && rule != nil {
+						adminInfo["error_replace_rule_id"] = rule.Id
+						adminInfo["error_replace_rule_name"] = rule.Name
+					}
+					isMultiKey := common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey)
+					if isMultiKey {
+						adminInfo["is_multi_key"] = true
+						adminInfo["multi_key_index"] = common.GetContextKeyInt(c, constant.ContextKeyChannelMultiKeyIndex)
+					}
+					service.AppendChannelAffinityAdminInfo(c, adminInfo)
+					other["admin_info"] = adminInfo
+					startTime := common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)
+					if startTime.IsZero() {
+						startTime = time.Now()
+					}
+					useTimeSeconds := int(time.Since(startTime).Seconds())
+					model.RecordErrorLog(c, userId, channelId, modelName, tokenName, newAPIError.ToOpenAIError().Message, tokenId, useTimeSeconds, false, userGroup, other)
+				}
+			}
+
 			logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.MaskSensitiveErrorWithStatusCode()))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
@@ -354,41 +398,6 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		gopool.Go(func() {
 			service.DisableChannel(channelError, err.ErrorWithStatusCode())
 		})
-	}
-
-	if constant.ErrorLogEnabled && types.IsRecordErrorLog(err) {
-		// 保存错误日志到mysql中
-		userId := c.GetInt("id")
-		tokenName := c.GetString("token_name")
-		modelName := c.GetString("original_model")
-		tokenId := c.GetInt("token_id")
-		userGroup := c.GetString("group")
-		channelId := c.GetInt("channel_id")
-		other := make(map[string]interface{})
-		if c.Request != nil && c.Request.URL != nil {
-			other["request_path"] = c.Request.URL.Path
-		}
-		other["error_type"] = err.GetErrorType()
-		other["error_code"] = err.GetErrorCode()
-		other["status_code"] = err.StatusCode
-		other["channel_id"] = channelId
-		other["channel_name"] = c.GetString("channel_name")
-		other["channel_type"] = c.GetInt("channel_type")
-		adminInfo := make(map[string]interface{})
-		adminInfo["use_channel"] = c.GetStringSlice("use_channel")
-		isMultiKey := common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey)
-		if isMultiKey {
-			adminInfo["is_multi_key"] = true
-			adminInfo["multi_key_index"] = common.GetContextKeyInt(c, constant.ContextKeyChannelMultiKeyIndex)
-		}
-		service.AppendChannelAffinityAdminInfo(c, adminInfo)
-		other["admin_info"] = adminInfo
-		startTime := common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)
-		if startTime.IsZero() {
-			startTime = time.Now()
-		}
-		useTimeSeconds := int(time.Since(startTime).Seconds())
-		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, err.MaskSensitiveErrorWithStatusCode(), tokenId, useTimeSeconds, false, userGroup, other)
 	}
 
 }

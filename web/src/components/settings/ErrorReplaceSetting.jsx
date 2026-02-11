@@ -123,7 +123,7 @@ const ErrorReplaceSetting = () => {
       name: rule?.name ?? '',
       enabled: !!rule?.enabled,
       match_type: rule?.match_type ?? 'content',
-      status_code: rule?.status_code ?? 0,
+      status_code: rule?.status_code ?? 500,
       pattern: rule?.pattern ?? '',
       replacement_message: rule?.replacement_message ?? '',
       priority: rule?.priority ?? 0,
@@ -352,11 +352,10 @@ const ErrorReplaceSetting = () => {
         cancelText={t('取消')}
       >
         <Form
+          key={`${editingRule?.id ?? 'new'}-${modalVisible ? 'open' : 'closed'}`}
           labelPosition='top'
           initValues={formValues}
-          onValueChange={(_, changedValues) =>
-            setFormValues((prev) => ({ ...prev, ...changedValues }))
-          }
+          onValueChange={(values) => setFormValues(values)}
         >
           <Form.Input
             field='name'
