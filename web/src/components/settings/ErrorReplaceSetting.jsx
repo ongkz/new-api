@@ -353,8 +353,10 @@ const ErrorReplaceSetting = () => {
       >
         <Form
           labelPosition='top'
-          values={formValues}
-          onValueChange={setFormValues}
+          initValues={formValues}
+          onValueChange={(_, changedValues) =>
+            setFormValues((prev) => ({ ...prev, ...changedValues }))
+          }
         >
           <Form.Input
             field='name'
