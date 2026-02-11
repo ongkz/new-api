@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -66,6 +65,15 @@ func GetPricing() []Pricing {
 		}
 	}
 	return pricingMap
+}
+
+// InvalidatePricingCache marks pricing-related caches as stale.
+// Next GetPricing() call will rebuild the snapshot.
+func InvalidatePricingCache() {
+	updatePricingLock.Lock()
+	defer updatePricingLock.Unlock()
+	lastGetPricingTime = time.Time{}
+	pricingMap = nil
 }
 
 // GetVendors 返回当前定价接口使用到的供应商信息
@@ -202,7 +210,7 @@ func updatePricing() {
 			continue
 		}
 		var raw map[string]interface{}
-		if err := json.Unmarshal([]byte(meta.Endpoints), &raw); err == nil {
+		if err := common.Unmarshal([]byte(meta.Endpoints), &raw); err == nil {
 			endpoints := make([]string, 0, len(raw))
 			for k, v := range raw {
 				switch v.(type) {
@@ -246,7 +254,7 @@ func updatePricing() {
 			continue
 		}
 		var raw map[string]interface{}
-		if err := json.Unmarshal([]byte(meta.Endpoints), &raw); err == nil {
+		if err := common.Unmarshal([]byte(meta.Endpoints), &raw); err == nil {
 			for k, v := range raw {
 				switch val := v.(type) {
 				case string:

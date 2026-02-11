@@ -196,6 +196,8 @@ func UpdateOption(key string, value string) error {
 func updateOptionMap(key string, value string) (err error) {
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
+	oldValue, existed := common.OptionMap[key]
+	changed := !existed || oldValue != value
 	common.OptionMap[key] = value
 
 	// 检查是否是模型配置 - 使用更规范的方式处理
@@ -458,6 +460,12 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.StreamCacheQueueLength, _ = strconv.Atoi(value)
 	case "PayMethods":
 		err = operation_setting.UpdatePayMethodsByJsonString(value)
+	}
+	if changed {
+		switch key {
+		case "ModelRatio", "ModelPrice", "CompletionRatio":
+			InvalidatePricingCache()
+		}
 	}
 	return err
 }
