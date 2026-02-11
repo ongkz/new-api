@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/QuantumNous/new-api/common"
+	"time"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -35,6 +36,25 @@ func filterPricingByUsableGroups(pricing []model.Pricing, usableGroup map[string
 
 func GetPricing(c *gin.Context) {
 	pricing := model.GetPricing()
+	// Pricing (model marketplace) should reflect dynamic daily welfare pricing in real time.
+	// model.GetPricing() is a cached snapshot, so we apply welfare overrides at response time.
+	now := time.Now()
+	pricingWithWelfare := make([]model.Pricing, 0, len(pricing))
+	for _, p := range pricing {
+		item := p
+		if rule, hit := service.GetDailyWelfareRuleForModel(c, item.ModelName, now); hit && rule != nil {
+			if item.QuotaType == 1 {
+				item.ModelPrice = rule.Value
+			} else {
+				item.ModelRatio = rule.Value
+				if rule.CompletionRatio != nil {
+					item.CompletionRatio = *rule.CompletionRatio
+				}
+			}
+		}
+		pricingWithWelfare = append(pricingWithWelfare, item)
+	}
+	pricing = pricingWithWelfare
 	userId, exists := c.Get("id")
 	usableGroup := map[string]string{}
 	groupRatio := map[string]float64{}
