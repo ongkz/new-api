@@ -29,12 +29,12 @@ import {
   Table,
   Typography,
 } from '@douyinfe/semi-ui';
-  import {
-    IconDelete,
-    IconEdit,
-    IconPlus,
-    IconRefresh,
-  } from '@douyinfe/semi-icons';
+import {
+  IconDelete,
+  IconEdit,
+  IconPlus,
+  IconRefresh,
+} from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 
 import { API, showError, showSuccess } from '../../helpers';
@@ -83,7 +83,7 @@ const ErrorReplaceSetting = () => {
     setLoading(true);
     try {
       const res = await API.get(
-        `/api/error-replace-rule/?p=${page}&page_size=${size}`
+        `/api/error-replace-rule/?p=${page}&page_size=${size}`,
       );
       if (res.data.success) {
         const data = res.data.data || {};
@@ -171,7 +171,7 @@ const ErrorReplaceSetting = () => {
       if (editingRule?.id) {
         res = await API.put(
           `/api/error-replace-rule/${editingRule.id}`,
-          formValues
+          formValues,
         );
       } else {
         res = await API.post('/api/error-replace-rule/', formValues);
@@ -270,17 +270,19 @@ const ErrorReplaceSetting = () => {
           </Text>
         ),
       },
-      { title: t('优先级'), dataIndex: 'priority', key: 'priority', width: 100 },
+      {
+        title: t('优先级'),
+        dataIndex: 'priority',
+        key: 'priority',
+        width: 100,
+      },
       {
         title: t('操作'),
         key: 'actions',
         width: 140,
         render: (_, record) => (
           <Space>
-            <Button
-              icon={<IconEdit />}
-              onClick={() => openEditModal(record)}
-            >
+            <Button icon={<IconEdit />} onClick={() => openEditModal(record)}>
               {t('编辑')}
             </Button>
             <Popconfirm
@@ -296,7 +298,7 @@ const ErrorReplaceSetting = () => {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, currentPage, pageSize, items]
+    [t, currentPage, pageSize, items],
   );
 
   return (
@@ -304,7 +306,10 @@ const ErrorReplaceSetting = () => {
       title={t('错误替换规则')}
       headerExtraContent={
         <Space>
-          <Button icon={<IconRefresh />} onClick={() => fetchList(currentPage, pageSize)}>
+          <Button
+            icon={<IconRefresh />}
+            onClick={() => fetchList(currentPage, pageSize)}
+          >
             {t('刷新')}
           </Button>
           <Button type='primary' icon={<IconPlus />} onClick={openAddModal}>
@@ -339,52 +344,38 @@ const ErrorReplaceSetting = () => {
       />
 
       <Modal
-        title={
-          editingRule?.id ? t('编辑错误替换规则') : t('添加错误替换规则')
-        }
+        title={editingRule?.id ? t('编辑错误替换规则') : t('添加错误替换规则')}
         visible={modalVisible}
         onOk={submit}
         onCancel={() => setModalVisible(false)}
         okText={editingRule?.id ? t('更新') : t('创建')}
         cancelText={t('取消')}
       >
-        <Form labelPosition='top'>
+        <Form
+          labelPosition='top'
+          values={formValues}
+          onValueChange={setFormValues}
+        >
           <Form.Input
             field='name'
             label={t('规则名称')}
-            value={formValues.name}
-            onChange={(value) => setFormValues((v) => ({ ...v, name: value }))}
             placeholder={t('例如：参数错误')}
             extraText={t('仅用于管理端识别，建议简短描述')}
             required
           />
-          <Form.Switch
-            field='enabled'
-            label={t('启用')}
-            checked={formValues.enabled}
-            onChange={(checked) =>
-              setFormValues((v) => ({ ...v, enabled: checked }))
-            }
-          />
+          <Form.Switch field='enabled' label={t('启用')} />
           <Form.Select
             field='match_type'
             label={t('匹配类型')}
-            value={formValues.match_type}
             placeholder={t('请选择匹配类型')}
             optionList={MATCH_TYPE_OPTIONS.map((o) => ({
               value: o.value,
               label: t(o.label),
             }))}
-            onChange={(value) =>
-              setFormValues((v) => ({
-                ...v,
-                match_type: value,
-              }))
-            }
             style={{ width: '100%' }}
             dropdownStyle={{ width: '100%', maxWidth: '100%' }}
             extraText={t(
-              '内容：pattern 为子串匹配；状态码：仅匹配 HTTP 状态码；状态码+内容：两者都满足。'
+              '内容：pattern 为子串匹配；状态码：仅匹配 HTTP 状态码；状态码+内容：两者都满足。',
             )}
             required
           />
@@ -393,10 +384,6 @@ const ErrorReplaceSetting = () => {
             <Form.InputNumber
               field='status_code'
               label={t('状态码')}
-              value={formValues.status_code}
-              onChange={(value) =>
-                setFormValues((v) => ({ ...v, status_code: value }))
-              }
               min={100}
               max={599}
               placeholder={500}
@@ -406,24 +393,16 @@ const ErrorReplaceSetting = () => {
           <Form.TextArea
             field='pattern'
             label={t('匹配模式')}
-            value={formValues.pattern}
-            onChange={(value) =>
-              setFormValues((v) => ({ ...v, pattern: value }))
-            }
             autosize={{ minRows: 2, maxRows: 6 }}
             placeholder={t('例如：MODEL_CAPACITY_EXHAUSTED')}
             extraText={t(
-              '匹配文本包含 status_code=<HTTP状态码>、上游原始 body、解析出的 error.message 等。'
+              '匹配文本包含 status_code=<HTTP状态码>、上游原始 body、解析出的 error.message 等。',
             )}
             disabled={formValues.match_type === 'status_code'}
           />
           <Form.TextArea
             field='replacement_message'
             label={t('替换消息')}
-            value={formValues.replacement_message}
-            onChange={(value) =>
-              setFormValues((v) => ({ ...v, replacement_message: value }))
-            }
             autosize={{ minRows: 2, maxRows: 6 }}
             placeholder={t('例如：429了老铁')}
             extraText={t('命中后将返回给客户端的错误 message 替换为该文本')}
@@ -432,10 +411,6 @@ const ErrorReplaceSetting = () => {
           <Form.InputNumber
             field='priority'
             label={t('优先级')}
-            value={formValues.priority}
-            onChange={(value) =>
-              setFormValues((v) => ({ ...v, priority: value }))
-            }
             placeholder={0}
             style={{ width: '100%' }}
             extraText={t('优先级越大越优先')}
