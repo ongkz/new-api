@@ -268,6 +268,7 @@
     "仅支持 JSON 文件，支持多文件": "Only JSON files are supported, multiple files are supported",
     "仅支持 OpenAI 接口格式": "Only OpenAI interface format is supported",
     "仅显示矛盾倍率": "Only show conflicting ratios",
+    "仅显示已添加模型": "Only show added models",
     "仅用于开发环境，生产环境应使用 HTTPS": "For development only, use HTTPS in production",
     "仅重置配置": "Reset configuration only",
     "今日关闭": "Close Today",

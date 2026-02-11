@@ -267,6 +267,7 @@
     "仅支持 JSON 文件，支持多文件": "Chỉ hỗ trợ tệp JSON, hỗ trợ nhiều tệp",
     "仅支持 OpenAI 接口格式": "Chỉ hỗ trợ định dạng giao diện OpenAI",
     "仅显示矛盾倍率": "Chỉ hiển thị tỷ lệ mâu thuẫn",
+    "仅显示已添加模型": "Chỉ hiển thị các mô hình đã thêm",
     "仅用于开发环境，生产环境应使用 HTTPS": "Chỉ dành cho phát triển, sử dụng HTTPS trong sản xuất",
     "仅重置配置": "Chỉ đặt lại cấu hình",
     "今日关闭": "Đóng hôm nay",

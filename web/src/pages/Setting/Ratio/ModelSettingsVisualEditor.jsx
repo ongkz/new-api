@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   Table,
   Button,
@@ -43,6 +43,9 @@ import { useTranslation } from 'react-i18next';
 export default function ModelSettingsVisualEditor(props) {
   const { t } = useTranslation();
   const [models, setModels] = useState([]);
+  const [addedModelsOnly, setAddedModelsOnly] = useState(true);
+  const [addedModels, setAddedModels] = useState(null); // null means not loaded / unknown
+  const [addedModelsLoading, setAddedModelsLoading] = useState(false);
   const [visible, setVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentModel, setCurrentModel] = useState(null);
@@ -55,6 +58,38 @@ export default function ModelSettingsVisualEditor(props) {
   const formRef = useRef(null);
   const pageSize = 10;
   const quotaPerUnit = getQuotaPerUnit();
+
+  const addedModelsSet = useMemo(() => {
+    if (!Array.isArray(addedModels)) return null;
+    return new Set(addedModels);
+  }, [addedModels]);
+
+  const loadAddedModels = async () => {
+    if (addedModelsLoading) return;
+    setAddedModelsLoading(true);
+    try {
+      const res = await API.get('/api/channel/models_enabled');
+      if (res.data?.success) {
+        const data = res.data?.data;
+        setAddedModels(Array.isArray(data) ? data : []);
+      } else {
+        showError(res.data?.message || t('获取模型列表失败'));
+        setAddedModels(null);
+        setAddedModelsOnly(false);
+      }
+    } catch (error) {
+      console.error(error);
+      showError(t('获取模型列表失败'));
+      setAddedModels(null);
+      setAddedModelsOnly(false);
+    } finally {
+      setAddedModelsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAddedModels().then();
+  }, []);
 
   useEffect(() => {
     try {
@@ -101,7 +136,11 @@ export default function ModelSettingsVisualEditor(props) {
   const filteredModels = models.filter((model) => {
     const keywordMatch = searchText ? model.name.includes(searchText) : true;
     const conflictMatch = conflictOnly ? model.hasConflict : true;
-    return keywordMatch && conflictMatch;
+    const addedMatch =
+      !addedModelsOnly ||
+      addedModelsSet === null ||
+      addedModelsSet.has(model.name);
+    return keywordMatch && conflictMatch && addedMatch;
   });
 
   // 然后基于过滤后的数据计算分页数据
@@ -488,6 +527,19 @@ export default function ModelSettingsVisualEditor(props) {
             }}
           >
             {t('仅显示矛盾倍率')}
+          </Checkbox>
+          <Checkbox
+            checked={addedModelsOnly}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setAddedModelsOnly(checked);
+              setCurrentPage(1);
+              if (checked && addedModelsSet === null) {
+                loadAddedModels().then();
+              }
+            }}
+          >
+            {t('仅显示已添加模型')}
           </Checkbox>
         </Space>
         <Table
