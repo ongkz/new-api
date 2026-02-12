@@ -116,26 +116,28 @@ func GetTokenStatus(c *gin.Context) {
 }
 
 func GetTokenUsage(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "No Authorization header",
-		})
-		return
+	// TokenAuthReadOnly middleware already validated the token and stored token_key in context.
+	// Keep a fallback parser for potential future reuse without middleware.
+	tokenKey := c.GetString("token_key")
+	if tokenKey == "" {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": "No Authorization header",
+			})
+			return
+		}
+		tokenKey = authHeader
+		if strings.HasPrefix(tokenKey, "Bearer ") || strings.HasPrefix(tokenKey, "bearer ") {
+			tokenKey = strings.TrimSpace(tokenKey[7:])
+		}
+		tokenKey = strings.TrimPrefix(tokenKey, "sk-")
+		parts := strings.Split(tokenKey, "-")
+		tokenKey = parts[0]
 	}
 
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "Invalid Bearer token",
-		})
-		return
-	}
-	tokenKey := parts[1]
-
-	token, err := model.GetTokenByKey(strings.TrimPrefix(tokenKey, "sk-"), false)
+	token, err := model.GetTokenByKey(tokenKey, false)
 	if err != nil {
 		common.SysError("failed to get token by key: " + err.Error())
 		common.ApiErrorI18n(c, i18n.MsgTokenGetInfoFailed)
