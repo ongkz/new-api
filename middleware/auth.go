@@ -196,12 +196,16 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		key := c.Request.Header.Get("Authorization")
 		if key == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"message": "未提供 Authorization 请求头",
-			})
-			c.Abort()
-			return
+			// Backward-compatible: allow token key to be passed via query param, e.g. /api/log/token?key=sk-xxx
+			key = c.Query("key")
+			if key == "" {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"success": false,
+					"message": "未提供 Authorization 请求头",
+				})
+				c.Abort()
+				return
+			}
 		}
 		if strings.HasPrefix(key, "Bearer ") || strings.HasPrefix(key, "bearer ") {
 			key = strings.TrimSpace(key[7:])
