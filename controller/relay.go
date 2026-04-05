@@ -87,27 +87,36 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	defer func() {
 		if newAPIError != nil {
-			originalErrorForAdmin := newAPIError.MaskSensitiveErrorWithStatusCode()
+			userId := c.GetInt("id")
+			isAdminRequester := model.IsAdmin(userId)
 
-			rule, applied := service.ApplyErrorReplaceRules(c, newAPIError)
+			originalErrorForAdmin := common.MessageWithRequestId(newAPIError.MaskSensitiveErrorWithStatusCode(), requestId)
+
+			var (
+				rule    *model.ErrorReplaceRule
+				applied bool
+			)
+			if !isAdminRequester {
+				rule, applied = service.ApplyErrorReplaceRules(c, newAPIError)
+			}
 			if applied && rule != nil {
 				logger.LogInfo(c, fmt.Sprintf("error replace rule hit: id=%d, name=%s, status_code=%d", rule.Id, rule.Name, newAPIError.StatusCode))
 			}
 
 			publicMessage := newAPIError.Error()
-			if !applied && service.ShouldHideUpstreamErrorDetails(newAPIError) {
+			if !isAdminRequester && !applied && service.ShouldHideUpstreamErrorDetails(newAPIError) {
 				publicMessage = "上游响应解析失败"
 			}
 			newAPIError.SetPublicMessage(common.MessageWithRequestId(publicMessage, requestId))
 
 			if constant.ErrorLogEnabled && types.IsRecordErrorLog(newAPIError) {
-				userId := c.GetInt("id")
 				tokenName := c.GetString("token_name")
 				modelName := c.GetString("original_model")
 				tokenId := c.GetInt("token_id")
 				userGroup := c.GetString("group")
 				channelId := c.GetInt("channel_id")
 				if channelId != 0 {
+					publicErrorForUser := newAPIError.ToOpenAIError().Message
 					other := make(map[string]interface{})
 					if c.Request != nil && c.Request.URL != nil {
 						other["request_path"] = c.Request.URL.Path
@@ -121,6 +130,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 					adminInfo := make(map[string]interface{})
 					adminInfo["use_channel"] = c.GetStringSlice("use_channel")
 					adminInfo["original_error"] = originalErrorForAdmin
+					adminInfo["public_error"] = publicErrorForUser
 					if applied && rule != nil {
 						adminInfo["error_replace_rule_id"] = rule.Id
 						adminInfo["error_replace_rule_name"] = rule.Name
@@ -137,11 +147,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 						startTime = time.Now()
 					}
 					useTimeSeconds := int(time.Since(startTime).Seconds())
-					model.RecordErrorLog(c, userId, channelId, modelName, tokenName, newAPIError.ToOpenAIError().Message, tokenId, useTimeSeconds, false, userGroup, other)
+					model.RecordErrorLog(c, userId, channelId, modelName, tokenName, publicErrorForUser, tokenId, useTimeSeconds, false, userGroup, other)
 				}
 			}
 
-			logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.MaskSensitiveErrorWithStatusCode()))
+			logger.LogError(c, fmt.Sprintf("relay error: %s", originalErrorForAdmin))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
