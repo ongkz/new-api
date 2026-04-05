@@ -931,9 +931,19 @@ export const getLogsColumns = ({
       fixed: 'right',
       width: 200,
       render: (text, record, index) => {
+        const other = getLogOther(record.other);
+        let displayText = text;
+        if (
+          isAdminUser &&
+          record.type === 5 &&
+          other?.admin_info?.original_error
+        ) {
+          displayText = other.admin_info.original_error;
+        }
+
         const detailSummary = getUsageLogDetailSummary(
           record,
-          text,
+          displayText,
           billingDisplayMode,
           t,
         );
@@ -950,7 +960,7 @@ export const getLogsColumns = ({
               }}
               style={{ maxWidth: 200, marginBottom: 0 }}
             >
-              {text}
+              {displayText}
             </Typography.Paragraph>
           );
         }
