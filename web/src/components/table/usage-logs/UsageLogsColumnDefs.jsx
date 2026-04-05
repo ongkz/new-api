@@ -640,6 +640,14 @@ export const getLogsColumns = ({
       render: (text, record, index) => {
         let other = getLogOther(record.other);
         if (other == null || record.type !== 2) {
+          let displayText = text;
+          if (
+            isAdminUser &&
+            record.type === 5 &&
+            other?.admin_info?.original_error
+          ) {
+            displayText = other.admin_info.original_error;
+          }
           return (
             <Typography.Paragraph
               ellipsis={{
@@ -651,7 +659,7 @@ export const getLogsColumns = ({
               }}
               style={{ maxWidth: 240 }}
             >
-              {text}
+              {displayText}
             </Typography.Paragraph>
           );
         }
