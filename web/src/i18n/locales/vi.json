@@ -3281,6 +3281,9 @@
     "套餐名称": "Tên gói",
     "应付金额": "Số tiền phải trả",
     "支付": "Thanh toán",
-    "管理员未开启在线支付功能，请联系管理员配置。": "Quản trị viên chưa bật thanh toán trực tuyến, vui lòng liên hệ quản trị viên."
+    "管理员未开启在线支付功能，请联系管理员配置。": "Quản trị viên chưa bật thanh toán trực tuyến, vui lòng liên hệ quản trị viên.",
+    "onboarding.title": "Huong dan",
+    "onboarding.dismissAll": "Khong hien tat ca huong dan nua",
+    "onboarding.confirm": "Da hieu"
   }
 }
