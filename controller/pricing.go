@@ -3,12 +3,33 @@ package controller
 import (
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
 )
+
+func filterPricingByUsableGroups(pricing []model.Pricing, usableGroup map[string]string) []model.Pricing {
+	if len(pricing) == 0 {
+		return pricing
+	}
+	if len(usableGroup) == 0 {
+		return []model.Pricing{}
+	}
+
+	filtered := make([]model.Pricing, 0, len(pricing))
+	for _, item := range pricing {
+		for _, group := range item.EnableGroup {
+			if _, ok := usableGroup[group]; ok || common.StringsContains(item.EnableGroup, "all") {
+				filtered = append(filtered, item)
+				break
+			}
+		}
+	}
+	return filtered
+}
 
 func GetPricing(c *gin.Context) {
 	pricing := model.GetPricing()
@@ -58,6 +79,7 @@ func GetPricing(c *gin.Context) {
 			delete(groupRatio, group)
 		}
 	}
+	pricing = filterPricingByUsableGroups(pricing, usableGroup)
 
 	c.JSON(200, gin.H{
 		"success":            true,
