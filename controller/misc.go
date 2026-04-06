@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -70,6 +71,7 @@ func GetStatus(c *gin.Context) {
 		"turnstile_site_key":          common.TurnstileSiteKey,
 		"top_up_link":                 common.TopUpLink,
 		"docs_link":                   operation_setting.GetGeneralSetting().DocsLink,
+		"model_status_link":           os.Getenv("MODEL_STATUS_LINK"),
 		"quota_per_unit":              common.QuotaPerUnit,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
