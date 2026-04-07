@@ -33,6 +33,7 @@ import ActionButtons from './ActionButtons';
 
 const MOBILE_MENU_GUIDE_ID = 'mobile_console_menu_button';
 const MODEL_MARKET_GUIDE_ID = 'header_model_market';
+const HOME_NAV_GUIDE_ID = 'header_home_nav';
 
 const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
   const {
@@ -80,6 +81,19 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
   const guides = useMemo(() => {
     const nextGuides = [];
 
+    if (mainNavLinks.some((link) => link.itemKey === 'home') && docsLink) {
+      nextGuides.push({
+        id: HOME_NAV_GUIDE_ID,
+        targetId: HOME_NAV_GUIDE_ID,
+        title: '首页设置教程',
+        description:
+          '如果不知道该如何配置 api，请点击首页中的【设置教程】跳转到教程文档。同时还有售后群号在首页，群内客服24小时解答。',
+        placement: 'bottom',
+        maxWidth: isMobile ? 320 : 380,
+        priority: 1000,
+      });
+    }
+
     if (mainNavLinks.some((link) => link.itemKey === 'pricing')) {
       nextGuides.push({
         id: MODEL_MARKET_GUIDE_ID,
@@ -105,11 +119,12 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     }
 
     return nextGuides;
-  }, [isConsoleRoute, isMobile, mainNavLinks]);
+  }, [docsLink, isConsoleRoute, isMobile, mainNavLinks]);
 
   useOnboardingScope(guides);
   const onboardingTargetProps = useOnboardingTarget(MOBILE_MENU_GUIDE_ID);
   const modelMarketTargetProps = useOnboardingTarget(MODEL_MARKET_GUIDE_ID);
+  const homeNavTargetProps = useOnboardingTarget(HOME_NAV_GUIDE_ID);
 
   return (
     <header className='text-semi-color-text-0 sticky top-0 z-50 transition-colors duration-300 bg-white/75 dark:bg-zinc-900/75 backdrop-blur-lg'>
@@ -154,6 +169,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
             userState={userState}
             pricingRequireAuth={pricingRequireAuth}
             onboardingTargetPropsByItemKey={{
+              home: homeNavTargetProps,
               pricing: modelMarketTargetProps,
             }}
           />
