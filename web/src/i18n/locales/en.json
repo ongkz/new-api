@@ -2847,6 +2847,9 @@
     "填写服务器地址后自动生成：": "Auto-generated after entering server address: ",
     "自动生成：": "Auto-generated: ",
     "请先填写服务器地址，以自动生成完整的端点 URL": "Please enter the server address first to auto-generate full endpoint URLs",
-    "端点 URL 必须是完整地址（以 http:// 或 https:// 开头）": "Endpoint URL must be a full address (starting with http:// or https://)"
+    "端点 URL 必须是完整地址（以 http:// 或 https:// 开头）": "Endpoint URL must be a full address (starting with http:// or https://)",
+    "onboarding.title": "Guide",
+    "onboarding.dismissAll": "Do not show onboarding again",
+    "onboarding.confirm": "Got it"
   }
 }

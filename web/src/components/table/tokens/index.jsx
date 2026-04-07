@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Notification,
   Button,
@@ -40,7 +40,13 @@ import TokensDescription from './TokensDescription';
 import EditTokenModal from './modals/EditTokenModal';
 import { useTokensData } from '../../../hooks/tokens/useTokensData';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
+import {
+  useOnboardingScope,
+  useOnboardingTarget,
+} from '../../../hooks/common/useOnboarding';
 import { createCardProPagination } from '../../../helpers/utils';
+
+const TOKENS_MOBILE_ACTIONS_GUIDE_ID = 'tokens_mobile_actions_toggle';
 
 function TokensPage() {
   // Define the function first, then pass it into the hook to avoid TDZ errors
@@ -49,6 +55,9 @@ function TokensPage() {
     openFluentNotificationRef.current?.(key),
   );
   const isMobile = useIsMobile();
+  const mobileActionsToggleTargetProps = useOnboardingTarget(
+    TOKENS_MOBILE_ACTIONS_GUIDE_ID,
+  );
   const latestRef = useRef({
     tokens: [],
     selectedKeys: [],
@@ -60,6 +69,23 @@ function TokensPage() {
   const [selectedModel, setSelectedModel] = useState('');
   const [fluentNoticeOpen, setFluentNoticeOpen] = useState(false);
   const [prefillKey, setPrefillKey] = useState('');
+  const tokensMobileActionGuides = useMemo(
+    () =>
+      isMobile
+        ? [
+            {
+              id: TOKENS_MOBILE_ACTIONS_GUIDE_ID,
+              title: '如何创建令牌',
+              description: '点击此处后出现操作栏，再点击添加令牌。',
+              placement: 'bottom',
+              maxWidth: 280,
+            },
+          ]
+        : [],
+    [isMobile],
+  );
+
+  useOnboardingScope(tokensMobileActionGuides);
 
   // Keep latest data for handlers inside notifications
   useEffect(() => {
@@ -365,6 +391,7 @@ function TokensPage() {
 
       <CardPro
         type='type1'
+        mobileActionsToggleTargetProps={mobileActionsToggleTargetProps}
         descriptionArea={
           <TokensDescription
             compactMode={compactMode}

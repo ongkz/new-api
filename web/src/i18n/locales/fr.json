@@ -2721,6 +2721,9 @@
     "套餐名称": "Nom du plan",
     "应付金额": "Montant à payer",
     "支付": "Payer",
-    "管理员未开启在线支付功能，请联系管理员配置。": "Le paiement en ligne n'est pas activé par l'administrateur. Veuillez contacter l'administrateur."
+    "管理员未开启在线支付功能，请联系管理员配置。": "Le paiement en ligne n'est pas activé par l'administrateur. Veuillez contacter l'administrateur.",
+    "onboarding.title": "Guide",
+    "onboarding.dismissAll": "Ne plus afficher les guides",
+    "onboarding.confirm": "Compris"
   }
 }

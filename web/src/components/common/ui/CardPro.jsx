@@ -55,6 +55,7 @@ const CardPro = ({
   // 卡片属性
   shadows = '',
   bordered = true,
+  mobileActionsToggleTargetProps,
   // 自定义样式
   style,
   // 国际化函数
@@ -97,7 +98,10 @@ const CardPro = ({
         {/* 移动端操作切换按钮 */}
         {isMobile && hasMobileHideableContent && (
           <>
-            <div className='w-full mb-2'>
+            <div
+              className='w-full mb-2'
+              {...(mobileActionsToggleTargetProps || {})}
+            >
               <Button
                 onClick={toggleMobileActions}
                 icon={showMobileActions ? <IconEyeClosed /> : <IconEyeOpened />}
@@ -191,6 +195,7 @@ CardPro.propTypes = {
   ]),
   searchArea: PropTypes.node,
   paginationArea: PropTypes.node,
+  mobileActionsToggleTargetProps: PropTypes.object,
   // 表格内容
   children: PropTypes.node,
   // 国际化函数
