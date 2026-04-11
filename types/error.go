@@ -96,6 +96,11 @@ type NewAPIError struct {
 	errorCode      ErrorCode
 	StatusCode     int
 	Metadata       json.RawMessage
+
+	// UpstreamBody stores upstream raw response body (best-effort, may be truncated).
+	UpstreamBody string
+	// UpstreamParseError stores parsing error when upstream body is not valid JSON (best-effort).
+	UpstreamParseError string
 }
 
 // Unwrap enables errors.Is / errors.As to work with NewAPIError by exposing the underlying error.
@@ -175,6 +180,27 @@ func (e *NewAPIError) MaskSensitiveErrorWithStatusCode() string {
 
 func (e *NewAPIError) SetMessage(message string) {
 	e.Err = errors.New(message)
+}
+
+// SetPublicMessage sets the message that will be returned to the client.
+// It updates both Err and relay-specific error payload (OpenAI/Claude) when applicable.
+func (e *NewAPIError) SetPublicMessage(message string) {
+	if e == nil {
+		return
+	}
+	e.Err = errors.New(message)
+	switch e.errorType {
+	case ErrorTypeOpenAIError:
+		if openAIError, ok := e.RelayError.(OpenAIError); ok {
+			openAIError.Message = message
+			e.RelayError = openAIError
+		}
+	case ErrorTypeClaudeError:
+		if claudeError, ok := e.RelayError.(ClaudeError); ok {
+			claudeError.Message = message
+			e.RelayError = claudeError
+		}
+	}
 }
 
 func (e *NewAPIError) ToOpenAIError() OpenAIError {

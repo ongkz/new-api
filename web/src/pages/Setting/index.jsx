@@ -34,6 +34,8 @@ import {
   CreditCard,
   Server,
   Activity,
+  AlertTriangle,
+  Gift,
 } from 'lucide-react';
 
 import SystemSetting from '../../components/settings/SystemSetting';
@@ -49,6 +51,8 @@ import DrawingSetting from '../../components/settings/DrawingSetting';
 import PaymentSetting from '../../components/settings/PaymentSetting';
 import ModelDeploymentSetting from '../../components/settings/ModelDeploymentSetting';
 import PerformanceSetting from '../../components/settings/PerformanceSetting';
+import ErrorReplaceSetting from '../../components/settings/ErrorReplaceSetting';
+import DailyWelfareSetting from '../../components/settings/DailyWelfareSetting';
 
 const Setting = () => {
   const { t } = useTranslation();
@@ -107,6 +111,26 @@ const Setting = () => {
       ),
       content: <PaymentSetting />,
       itemKey: 'payment',
+    });
+    panes.push({
+      tab: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Gift size={18} />
+          {t('每日福利设置')}
+        </span>
+      ),
+      content: <DailyWelfareSetting />,
+      itemKey: 'daily-welfare',
+    });
+    panes.push({
+      tab: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <AlertTriangle size={18} />
+          {t('报错修改设置')}
+        </span>
+      ),
+      content: <ErrorReplaceSetting />,
+      itemKey: 'error-replace',
     });
     panes.push({
       tab: (
