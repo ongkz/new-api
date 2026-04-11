@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -134,15 +135,21 @@ func WeChatBind(c *gin.Context) {
 		})
 		return
 	}
-	var req wechatBindRequest
-	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+	req := wechatBindRequest{Code: strings.TrimSpace(c.Query("code"))}
+	if req.Code == "" {
+		var bodyReq wechatBindRequest
+		if err := common.DecodeJson(c.Request.Body, &bodyReq); err == nil {
+			req.Code = strings.TrimSpace(bodyReq.Code)
+		}
+	}
+	code := req.Code
+	if code == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "无效的请求",
 		})
 		return
 	}
-	code := req.Code
 	wechatId, err := getWeChatIdByCode(code)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{

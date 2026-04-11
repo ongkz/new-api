@@ -371,6 +371,7 @@
     "仅支持 OpenAI 接口格式": "Chỉ hỗ trợ định dạng giao diện OpenAI",
     "仅显示已绑定": "Chỉ hiển thị đã liên kết",
     "仅显示矛盾倍率": "Chỉ hiển thị tỷ lệ mâu thuẫn",
+    "仅显示已添加模型": "Chỉ hiển thị các mô hình đã thêm",
     "仅用于开发环境，生产环境应使用 HTTPS": "Chỉ dành cho phát triển, sử dụng HTTPS trong sản xuất",
     "仅用于换算，实际保存的是额度": "Chỉ dùng để quy đổi, giá trị lưu thực tế là hạn ngạch",
     "仅用订阅": "Chỉ dùng đăng ký",
