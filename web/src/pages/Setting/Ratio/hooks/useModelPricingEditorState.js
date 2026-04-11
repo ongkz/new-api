@@ -530,6 +530,7 @@ export function useModelPricingEditorState({
   t,
   candidateModelNames = EMPTY_CANDIDATE_MODEL_NAMES,
   filterMode = 'all',
+  allowedModelNames = null,
 }) {
   const [models, setModels] = useState([]);
   const [initialVisibleModelNames, setInitialVisibleModelNames] = useState([]);
@@ -540,6 +541,12 @@ export function useModelPricingEditorState({
   const [loading, setLoading] = useState(false);
   const [conflictOnly, setConflictOnly] = useState(false);
   const [optionalFieldToggles, setOptionalFieldToggles] = useState({});
+  const allowedModelNameSet = useMemo(() => {
+    if (!Array.isArray(allowedModelNames) || allowedModelNames.length === 0) {
+      return null;
+    }
+    return new Set(allowedModelNames);
+  }, [allowedModelNames]);
 
   useEffect(() => {
     const sourceMaps = {
@@ -598,10 +605,15 @@ export function useModelPricingEditorState({
   }, [candidateModelNames, filterMode, options]);
 
   const visibleModels = useMemo(() => {
-    return filterMode === 'unset'
-      ? models.filter((model) => initialVisibleModelNames.includes(model.name))
-      : models;
-  }, [filterMode, initialVisibleModelNames, models]);
+    const baseModels =
+      filterMode === 'unset'
+        ? models.filter((model) => initialVisibleModelNames.includes(model.name))
+        : models;
+    if (!allowedModelNameSet) {
+      return baseModels;
+    }
+    return baseModels.filter((model) => allowedModelNameSet.has(model.name));
+  }, [allowedModelNameSet, filterMode, initialVisibleModelNames, models]);
 
   const filteredModels = useMemo(() => {
     return visibleModels.filter((model) => {
@@ -637,7 +649,7 @@ export function useModelPricingEditorState({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchText, conflictOnly, filterMode, candidateModelNames]);
+  }, [searchText, conflictOnly, filterMode, candidateModelNames, allowedModelNames]);
 
   useEffect(() => {
     setSelectedModelNames((previous) =>

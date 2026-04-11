@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Banner,
   Button,
@@ -49,6 +49,7 @@ import {
   useModelPricingEditorState,
 } from '../hooks/useModelPricingEditorState';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
+import { API, showError } from '../../../../helpers';
 
 const { Text } = Typography;
 const EMPTY_CANDIDATE_MODEL_NAMES = [];
@@ -101,6 +102,41 @@ export default function ModelPricingEditor({
   const [addVisible, setAddVisible] = useState(false);
   const [batchVisible, setBatchVisible] = useState(false);
   const [newModelName, setNewModelName] = useState('');
+  const [addedModelsOnly, setAddedModelsOnly] = useState(false);
+  const [addedModelNames, setAddedModelNames] = useState([]);
+  const [addedModelsLoading, setAddedModelsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadAddedModels = async () => {
+      try {
+        setAddedModelsLoading(true);
+        const res = await API.get('/api/channel/models_enabled');
+        if (!res.data?.success) {
+          throw new Error(res.data?.message || t('获取模型列表失败'));
+        }
+        if (!cancelled) {
+          const nextNames = Array.isArray(res.data?.data) ? res.data.data : [];
+          setAddedModelNames(nextNames);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          showError(error.message || t('获取模型列表失败'));
+          setAddedModelsOnly(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setAddedModelsLoading(false);
+        }
+      }
+    };
+
+    loadAddedModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
 
   const {
     selectedModel,
@@ -133,6 +169,7 @@ export default function ModelPricingEditor({
     t,
     candidateModelNames,
     filterMode,
+    allowedModelNames: addedModelsOnly ? addedModelNames : null,
   });
 
   const columns = useMemo(
@@ -273,6 +310,13 @@ export default function ModelPricingEditor({
               {t('仅显示矛盾倍率')}
             </Checkbox>
           ) : null}
+          <Checkbox
+            checked={addedModelsOnly}
+            disabled={addedModelsLoading}
+            onChange={(event) => setAddedModelsOnly(event.target.checked)}
+          >
+            {t('仅显示已添加模型')}
+          </Checkbox>
         </Space>
 
         {listDescription ? (

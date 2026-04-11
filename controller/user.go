@@ -931,13 +931,27 @@ type emailBindRequest struct {
 }
 
 func EmailBind(c *gin.Context) {
-	var req emailBindRequest
-	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
-		common.ApiError(c, errors.New("invalid request body"))
-		return
+	req := emailBindRequest{
+		Email: strings.TrimSpace(c.Query("email")),
+		Code:  strings.TrimSpace(c.Query("code")),
+	}
+	if req.Email == "" || req.Code == "" {
+		var bodyReq emailBindRequest
+		if err := common.DecodeJson(c.Request.Body, &bodyReq); err == nil {
+			if req.Email == "" {
+				req.Email = strings.TrimSpace(bodyReq.Email)
+			}
+			if req.Code == "" {
+				req.Code = strings.TrimSpace(bodyReq.Code)
+			}
+		}
 	}
 	email := req.Email
 	code := req.Code
+	if email == "" || code == "" {
+		common.ApiError(c, errors.New("invalid request"))
+		return
+	}
 	if !common.VerifyCodeWithKey(email, code, common.EmailVerificationPurpose) {
 		common.ApiErrorI18n(c, i18n.MsgUserVerificationCodeError)
 		return
