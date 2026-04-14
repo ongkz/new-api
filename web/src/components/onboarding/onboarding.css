@@ -1,0 +1,154 @@
+.onboarding-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  pointer-events: none;
+}
+
+.onboarding-mask-svg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: rgba(43, 47, 54, 0.56);
+  pointer-events: none;
+}
+
+.onboarding-mask-svg path {
+  fill: currentColor;
+  pointer-events: auto;
+}
+
+.onboarding-spotlight {
+  position: fixed;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.24) inset;
+  pointer-events: none;
+}
+
+.onboarding-card {
+  position: fixed;
+  box-sizing: border-box;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.98);
+  color: #171717;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  padding: 22px 24px 20px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+}
+
+.onboarding-card-arrow {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  border-left: 1px solid rgba(15, 23, 42, 0.08);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  transform: translate(-50%, -50%) rotate(45deg);
+  z-index: -1;
+}
+
+.onboarding-card-bottom .onboarding-card-arrow {
+  top: 0;
+}
+
+.onboarding-card-top .onboarding-card-arrow {
+  top: 100%;
+  transform: translate(-50%, -50%) rotate(225deg);
+}
+
+.onboarding-card-left .onboarding-card-arrow {
+  left: 100%;
+  transform: translate(-50%, -50%) rotate(135deg);
+}
+
+.onboarding-card-right .onboarding-card-arrow {
+  left: 0;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.onboarding-card-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.onboarding-card-description {
+  display: block;
+  line-height: 1.8;
+  color: rgba(23, 23, 23, 0.8);
+}
+
+.onboarding-card-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.onboarding-confirm-button {
+  background: #b1d8f3 !important;
+  border-color: #b1d8f3 !important;
+  color: #171717 !important;
+}
+
+.onboarding-confirm-button:hover,
+.onboarding-confirm-button:focus {
+  background: #b1d8f3 !important;
+  border-color: #b1d8f3 !important;
+  color: #171717 !important;
+}
+
+html.dark .onboarding-mask-svg {
+  color: rgba(255, 255, 255, 0.16);
+}
+
+html.dark .onboarding-spotlight {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(17, 24, 39, 0.22);
+  box-shadow:
+    0 10px 28px rgba(2, 6, 23, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+html.dark .onboarding-card {
+  background: rgba(17, 24, 39, 0.96);
+  color: rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.34);
+}
+
+html.dark .onboarding-card-arrow {
+  background: rgba(17, 24, 39, 0.96);
+  border-left-color: rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .onboarding-card-badge {
+  background: rgba(96, 165, 250, 0.14);
+  color: #93c5fd;
+}
+
+html.dark .onboarding-card-description {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+@media (max-width: 767px) {
+  .onboarding-card {
+    max-width: calc(100vw - 24px);
+    border-radius: 20px;
+    padding: 18px 18px 16px;
+  }
+}

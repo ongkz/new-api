@@ -25,6 +25,11 @@ import { ChevronLeft } from 'lucide-react';
 import { useSidebarCollapsed } from '../../hooks/common/useSidebarCollapsed';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
+import {
+  useOnboarding,
+  useOnboardingScope,
+  useOnboardingTarget,
+} from '../../hooks/common/useOnboarding';
 import { isAdmin, isRoot, showError } from '../../helpers';
 import SkeletonWrapper from './components/SkeletonWrapper';
 
@@ -51,6 +56,12 @@ const routerMap = {
   personal: '/console/personal',
 };
 
+const SIDEBAR_TOKEN_GUIDE_ID = 'sidebar_token_management';
+const SIDEBAR_LOG_GUIDE_ID = 'sidebar_usage_logs';
+const SIDEBAR_TOPUP_GUIDE_ID = 'sidebar_wallet_management';
+const SIDEBAR_TOPUP_INVITE_GUIDE_ID = 'sidebar_wallet_management_invite';
+const SIDEBAR_OVERVIEW_GUIDE_ID = 'sidebar_overview';
+
 const SiderBar = ({ onNavigate = () => {} }) => {
   const { t } = useTranslation();
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
@@ -67,6 +78,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
   const [openedKeys, setOpenedKeys] = useState([]);
   const location = useLocation();
   const [routerMapState, setRouterMapState] = useState(routerMap);
+  const { state: onboardingState } = useOnboarding();
+  const tokenTargetProps = useOnboardingTarget(SIDEBAR_TOKEN_GUIDE_ID);
+  const logTargetProps = useOnboardingTarget(SIDEBAR_LOG_GUIDE_ID);
+  const topupTargetProps = useOnboardingTarget(SIDEBAR_TOPUP_GUIDE_ID);
+  const sidebarTargetProps = useOnboardingTarget(SIDEBAR_OVERVIEW_GUIDE_ID);
 
   const workspaceItems = useMemo(() => {
     const items = [
@@ -200,6 +216,94 @@ const SiderBar = ({ onNavigate = () => {} }) => {
     return filteredItems;
   }, [isAdmin(), isRoot(), t, isModuleVisible]);
 
+  const sidebarGuides = useMemo(() => {
+    const guides = [];
+    const tokenVisible = workspaceItems.some(
+      (item) => item.itemKey === 'token',
+    );
+    const logVisible = workspaceItems.some((item) => item.itemKey === 'log');
+    const topupVisible = financeItems.some((item) => item.itemKey === 'topup');
+    const tokenDone = onboardingState.shown[SIDEBAR_TOKEN_GUIDE_ID] === true;
+    const logDone = onboardingState.shown[SIDEBAR_LOG_GUIDE_ID] === true;
+    const topupDone = onboardingState.shown[SIDEBAR_TOPUP_GUIDE_ID] === true;
+    const topupInviteDone =
+      onboardingState.shown[SIDEBAR_TOPUP_INVITE_GUIDE_ID] === true;
+    const priorGuidesDone =
+      (!tokenVisible || tokenDone) &&
+      (!logVisible || logDone) &&
+      (!topupVisible || (topupDone && topupInviteDone));
+    const hasSidebarContent =
+      workspaceItems.length > 0 ||
+      financeItems.length > 0 ||
+      adminItems.length > 0;
+
+    if (tokenVisible) {
+      guides.push({
+        id: SIDEBAR_TOKEN_GUIDE_ID,
+        targetId: SIDEBAR_TOKEN_GUIDE_ID,
+        title: '令牌管理',
+        description: '是必须前往的页面之一。添加令牌获取密码钥匙，来调用模型。',
+        placement: 'right',
+        maxWidth: 340,
+      });
+    }
+
+    if (logVisible && (!tokenVisible || tokenDone)) {
+      guides.push({
+        id: SIDEBAR_LOG_GUIDE_ID,
+        targetId: SIDEBAR_LOG_GUIDE_ID,
+        title: '使用日志',
+        description:
+          '可以查看到宝宝自己调用 API 相关记录，报错不扣费。生成失败会有具体报错记录。',
+        placement: 'right',
+        maxWidth: 360,
+      });
+    }
+
+    if (
+      topupVisible &&
+      (!logVisible || logDone) &&
+      (!tokenVisible || tokenDone)
+    ) {
+      guides.push({
+        id: SIDEBAR_TOPUP_GUIDE_ID,
+        targetId: SIDEBAR_TOPUP_GUIDE_ID,
+        title: '钱包管理',
+        description:
+          '可以使用支付宝在线支付，充值额度。也可以到首页往下翻找找到闲鱼充值处，根据方法进行微信充值。首页还有售后群相关，请务必加个群哦。',
+        placement: 'right',
+        maxWidth: 380,
+      });
+
+      if (topupDone) {
+        guides.push({
+          id: SIDEBAR_TOPUP_INVITE_GUIDE_ID,
+          targetId: SIDEBAR_TOPUP_GUIDE_ID,
+          title: '邀请奖励',
+          description:
+            '该页面打开后往下翻，有专属自己的邀请链接哦。邀请一人获得100额度，发宣传帖子有额外奖励。但请勿注册多个小号刷奖励，这会被系统查到永久封号！',
+          placement: 'right',
+          maxWidth: 380,
+        });
+      }
+    }
+
+    if (priorGuidesDone && hasSidebarContent) {
+      guides.push({
+        id: SIDEBAR_OVERVIEW_GUIDE_ID,
+        targetId: SIDEBAR_OVERVIEW_GUIDE_ID,
+        title: '其他页面',
+        description: '左侧侧边栏范围内，其他小页面均为字面意思。',
+        placement: 'right',
+        maxWidth: 320,
+      });
+    }
+
+    return guides;
+  }, [adminItems.length, financeItems, onboardingState.shown, workspaceItems]);
+
+  useOnboardingScope(sidebarGuides);
+
   const chatMenuItems = useMemo(() => {
     const items = [
       {
@@ -313,26 +417,39 @@ const SiderBar = ({ onNavigate = () => {} }) => {
 
     const isSelected = selectedKeys.includes(item.itemKey);
     const textColor = isSelected ? SELECTED_COLOR : 'inherit';
+    const onboardingTargetProps =
+      item.itemKey === 'token'
+        ? tokenTargetProps
+        : item.itemKey === 'log'
+          ? logTargetProps
+          : item.itemKey === 'topup'
+            ? topupTargetProps
+            : null;
 
     return (
-      <Nav.Item
+      <span
         key={item.itemKey}
-        itemKey={item.itemKey}
-        text={
-          <span
-            className='truncate font-medium text-sm'
-            style={{ color: textColor }}
-          >
-            {item.text}
-          </span>
-        }
-        icon={
-          <div className='sidebar-icon-container flex-shrink-0'>
-            {getLucideIcon(item.itemKey, isSelected)}
-          </div>
-        }
-        className={item.className}
-      />
+        {...(onboardingTargetProps || {})}
+        className='block'
+      >
+        <Nav.Item
+          itemKey={item.itemKey}
+          text={
+            <span
+              className='truncate font-medium text-sm'
+              style={{ color: textColor }}
+            >
+              {item.text}
+            </span>
+          }
+          icon={
+            <div className='sidebar-icon-container flex-shrink-0'>
+              {getLucideIcon(item.itemKey, isSelected)}
+            </div>
+          }
+          className={item.className}
+        />
+      </span>
     );
   };
 
@@ -388,6 +505,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
 
   return (
     <div
+      {...sidebarTargetProps}
       className='sidebar-container'
       style={{
         width: 'var(--sidebar-current-width)',

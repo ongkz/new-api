@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useContext, useRef } from 'react';
+import React, { useEffect, useState, useContext, useRef, useMemo } from 'react';
 import {
   API,
   showError,
@@ -51,8 +51,13 @@ import {
 } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../../../context/Status';
+import {
+  useOnboardingScope,
+  useOnboardingTarget,
+} from '../../../../hooks/common/useOnboarding';
 
 const { Text, Title } = Typography;
+const ADD_TOKEN_BASICS_GUIDE_ID = 'add_token_basics';
 
 const EditTokenModal = (props) => {
   const { t } = useTranslation();
@@ -63,6 +68,27 @@ const EditTokenModal = (props) => {
   const [models, setModels] = useState([]);
   const [groups, setGroups] = useState([]);
   const isEdit = props.editingToken.id !== undefined;
+  const addTokenBasicsTargetProps = useOnboardingTarget(
+    ADD_TOKEN_BASICS_GUIDE_ID,
+  );
+  const addTokenGuides = useMemo(
+    () =>
+      props.visiable && !isEdit
+        ? [
+            {
+              id: ADD_TOKEN_BASICS_GUIDE_ID,
+              title: '如何创建令牌',
+              description:
+                '宝宝请注意，令牌名称随意填写！分组是一定要选的，各分组的区别上面都有写哦，如果不知道选哪个好，那就直接选择“千岛酱”。永不过期与无限额度一定要开启，其他的基本不用动。',
+              placement: isMobile ? 'bottom' : 'right',
+              maxWidth: isMobile ? 300 : 360,
+            },
+          ]
+        : [],
+    [isEdit, isMobile, props.visiable],
+  );
+
+  useOnboardingScope(addTokenGuides);
 
   const getInitValues = () => ({
     name: '',
@@ -350,41 +376,49 @@ const EditTokenModal = (props) => {
                 </div>
                 <Row gutter={12}>
                   <Col span={24}>
-                    <Form.Input
-                      field='name'
-                      label={t('名称')}
-                      placeholder={t('请输入名称')}
-                      rules={[{ required: true, message: t('请输入名称') }]}
-                      showClear
-                    />
-                  </Col>
-                  <Col span={24}>
-                    {groups.length > 0 ? (
-                      <Form.Select
-                        field='group'
-                        label={t('令牌分组')}
-                        placeholder={t('令牌分组，默认为用户的分组')}
-                        optionList={groups}
-                        renderOptionItem={renderGroupOption}
-                        filter={(input, option) => {
-                          const q = input.toLowerCase();
-                          return (
-                            option.value?.toLowerCase().includes(q) ||
-                            (typeof option.label === 'string' &&
-                              option.label.toLowerCase().includes(q))
-                          );
-                        }}
-                        showClear
-                        style={{ width: '100%' }}
-                      />
-                    ) : (
-                      <Form.Select
-                        placeholder={t('管理员未设置用户可选分组')}
-                        disabled
-                        label={t('令牌分组')}
-                        style={{ width: '100%' }}
-                      />
-                    )}
+                    <div {...addTokenBasicsTargetProps}>
+                      <Row gutter={12}>
+                        <Col span={24}>
+                          <Form.Input
+                            field='name'
+                            label={t('名称')}
+                            placeholder={t('请输入名称')}
+                            rules={[
+                              { required: true, message: t('请输入名称') },
+                            ]}
+                            showClear
+                          />
+                        </Col>
+                        <Col span={24}>
+                          {groups.length > 0 ? (
+                            <Form.Select
+                              field='group'
+                              label={t('令牌分组')}
+                              placeholder={t('令牌分组，默认为用户的分组')}
+                              optionList={groups}
+                              renderOptionItem={renderGroupOption}
+                              filter={(input, option) => {
+                                const q = input.toLowerCase();
+                                return (
+                                  option.value?.toLowerCase().includes(q) ||
+                                  (typeof option.label === 'string' &&
+                                    option.label.toLowerCase().includes(q))
+                                );
+                              }}
+                              showClear
+                              style={{ width: '100%' }}
+                            />
+                          ) : (
+                            <Form.Select
+                              placeholder={t('管理员未设置用户可选分组')}
+                              disabled
+                              label={t('令牌分组')}
+                              style={{ width: '100%' }}
+                            />
+                          )}
+                        </Col>
+                      </Row>
+                    </div>
                   </Col>
                   <Col
                     span={24}

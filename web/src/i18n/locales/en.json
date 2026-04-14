@@ -3503,5 +3503,9 @@
     "，当前无生效订阅，将自动使用钱包": ", no active subscription. Wallet will be used automatically.",
     "，时间：": ",time:",
     "，点击更新": ", click Update"
-  }
+  },
+    "模型状态": "Model Status",
+    "onboarding.title": "Guide",
+    "onboarding.dismissAll": "Do not show onboarding again",
+    "onboarding.confirm": "Got it",
 }
