@@ -35,6 +35,9 @@ import {
 } from '@douyinfe/semi-illustrations';
 import { StatusContext } from '../../context/Status';
 import { Bell, Megaphone } from 'lucide-react';
+import { useOnboardingSuppressed } from '../../hooks/common/useOnboarding';
+
+const NOTICE_MODAL_ONBOARDING_SUPPRESSION_KEY = 'notice-modal';
 
 const NoticeModal = ({
   visible,
@@ -49,6 +52,7 @@ const NoticeModal = ({
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   const [statusState] = useContext(StatusContext);
+  useOnboardingSuppressed(NOTICE_MODAL_ONBOARDING_SUPPRESSION_KEY, visible);
 
   const announcements = statusState?.status?.announcements || [];
 

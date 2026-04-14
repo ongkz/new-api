@@ -17,15 +17,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useHeaderBar } from '../../../hooks/common/useHeaderBar';
 import { useNotifications } from '../../../hooks/common/useNotifications';
 import { useNavigation } from '../../../hooks/common/useNavigation';
+import {
+  useOnboardingScope,
+  useOnboardingTarget,
+} from '../../../hooks/common/useOnboarding';
 import NoticeModal from '../NoticeModal';
 import MobileMenuButton from './MobileMenuButton';
 import HeaderLogo from './HeaderLogo';
 import Navigation from './Navigation';
 import ActionButtons from './ActionButtons';
+
+const MOBILE_MENU_GUIDE_ID = 'mobile_console_menu_button';
+const MODEL_MARKET_GUIDE_ID = 'header_model_market';
+const HOME_NAV_GUIDE_ID = 'header_home_nav';
 
 const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
   const {
@@ -41,6 +49,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     isNewYear,
     isSelfUseMode,
     docsLink,
+    modelStatusLink,
     isDemoSiteMode,
     isConsoleRoute,
     theme,
@@ -62,7 +71,60 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     getUnreadKeys,
   } = useNotifications(statusState);
 
-  const { mainNavLinks } = useNavigation(t, docsLink, headerNavModules);
+  const { mainNavLinks } = useNavigation(
+    t,
+    docsLink,
+    headerNavModules,
+    modelStatusLink,
+  );
+
+  const guides = useMemo(() => {
+    const nextGuides = [];
+
+    if (mainNavLinks.some((link) => link.itemKey === 'home') && docsLink) {
+      nextGuides.push({
+        id: HOME_NAV_GUIDE_ID,
+        targetId: HOME_NAV_GUIDE_ID,
+        title: '首页设置教程',
+        description:
+          '如果不知道该如何配置 api，请点击首页中的【设置教程】跳转到教程文档。同时还有售后群号在首页，群内客服24小时解答。',
+        placement: 'bottom',
+        maxWidth: isMobile ? 320 : 380,
+        priority: 1000,
+      });
+    }
+
+    if (mainNavLinks.some((link) => link.itemKey === 'pricing')) {
+      nextGuides.push({
+        id: MODEL_MARKET_GUIDE_ID,
+        targetId: MODEL_MARKET_GUIDE_ID,
+        title: '模型广场',
+        description:
+          '这里可以查到所有模型与具体价格哦，本站点1r=站内100额度，宝宝们自行换算。首页可以看到售后群，我们每周会放模型打折投票与不定期福利。',
+        placement: 'bottom',
+        maxWidth: isMobile ? 300 : 360,
+        priority: 300,
+      });
+    }
+
+    if (isConsoleRoute && isMobile) {
+      nextGuides.push({
+        id: MOBILE_MENU_GUIDE_ID,
+        targetId: MOBILE_MENU_GUIDE_ID,
+        title: '点击后可查看其他数据页面',
+        placement: 'bottom',
+        maxWidth: 260,
+        priority: 200,
+      });
+    }
+
+    return nextGuides;
+  }, [docsLink, isConsoleRoute, isMobile, mainNavLinks]);
+
+  useOnboardingScope(guides);
+  const onboardingTargetProps = useOnboardingTarget(MOBILE_MENU_GUIDE_ID);
+  const modelMarketTargetProps = useOnboardingTarget(MODEL_MARKET_GUIDE_ID);
+  const homeNavTargetProps = useOnboardingTarget(HOME_NAV_GUIDE_ID);
 
   return (
     <header className='text-semi-color-text-0 sticky top-0 z-50 transition-colors duration-300 bg-white/75 dark:bg-zinc-900/75 backdrop-blur-lg'>
@@ -83,6 +145,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
               drawerOpen={drawerOpen}
               collapsed={collapsed}
               onToggle={handleMobileMenuToggle}
+              onboardingTargetProps={onboardingTargetProps}
               t={t}
             />
 
@@ -105,6 +168,10 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
             isLoading={isLoading}
             userState={userState}
             pricingRequireAuth={pricingRequireAuth}
+            onboardingTargetPropsByItemKey={{
+              home: homeNavTargetProps,
+              pricing: modelMarketTargetProps,
+            }}
           />
 
           <ActionButtons

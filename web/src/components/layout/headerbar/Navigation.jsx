@@ -27,6 +27,7 @@ const Navigation = ({
   isLoading,
   userState,
   pricingRequireAuth,
+  onboardingTargetPropsByItemKey,
 }) => {
   const renderNavLinks = () => {
     const baseClasses =
@@ -38,6 +39,8 @@ const Navigation = ({
 
     return mainNavLinks.map((link) => {
       const linkContent = <span>{link.text}</span>;
+      const onboardingTargetProps =
+        onboardingTargetPropsByItemKey?.[link.itemKey];
 
       if (link.isExternal) {
         return (
@@ -47,6 +50,7 @@ const Navigation = ({
             target='_blank'
             rel='noopener noreferrer'
             className={commonLinkClasses}
+            {...(onboardingTargetProps || {})}
           >
             {linkContent}
           </a>
@@ -62,7 +66,12 @@ const Navigation = ({
       }
 
       return (
-        <Link key={link.itemKey} to={targetPath} className={commonLinkClasses}>
+        <Link
+          key={link.itemKey}
+          to={targetPath}
+          className={commonLinkClasses}
+          {...(onboardingTargetProps || {})}
+        >
           {linkContent}
         </Link>
       );

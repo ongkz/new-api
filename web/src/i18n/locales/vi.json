@@ -4008,5 +4008,8 @@
     "，当前无生效订阅，将自动使用钱包": ", hiện không có gói đăng ký hiệu lực, sẽ tự động dùng ví.",
     "，时间：": ", thời gian:",
     "，点击更新": ", nhấn để cập nhật"
-  }
+  },
+    "onboarding.title": "Hướng dẫn",
+    "onboarding.dismissAll": "Không hiển thị tất cả hướng dẫn nữa",
+    "onboarding.confirm": "Đã hiểu",
 }
