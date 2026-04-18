@@ -12,15 +12,30 @@ import (
 )
 
 type TopUp struct {
-	Id               int     `json:"id"`
-	UserId           int     `json:"user_id" gorm:"index"`
-	Amount           int64   `json:"amount"`
-	Money            float64 `json:"money"`
-	TradeNo          string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
-	PaymentMethod    string  `json:"payment_method" gorm:"type:varchar(50)"`
-	CreateTime       int64   `json:"create_time"`
-	CompleteTime     int64   `json:"complete_time"`
-	Status           string  `json:"status"`
+	Id            int     `json:"id"`
+	UserId        int     `json:"user_id" gorm:"index"`
+	Amount        int64   `json:"amount"`
+	Money         float64 `json:"money"`
+	TradeNo       string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
+	PaymentMethod string  `json:"payment_method" gorm:"type:varchar(50)"`
+	CreateTime    int64   `json:"create_time"`
+	CompleteTime  int64   `json:"complete_time"`
+	Status        string  `json:"status"`
+}
+
+var ErrPaymentMethodMismatch = errors.New("payment method mismatch")
+
+func ensureTopUpPaymentMethod(topUp *TopUp, expected string) error {
+	if topUp.PaymentMethod == "" {
+		common.SysLog(fmt.Sprintf("legacy topup missing payment_method, allowing %s flow for trade_no=%s", expected, topUp.TradeNo))
+		return nil
+	}
+
+	if topUp.PaymentMethod != expected {
+		return ErrPaymentMethodMismatch
+	}
+
+	return nil
 }
 
 func (topUp *TopUp) Insert() error {
@@ -74,6 +89,10 @@ func Recharge(referenceId string, customerId string) (err error) {
 			return errors.New("充值订单不存在")
 		}
 
+		if err := ensureTopUpPaymentMethod(topUp, "stripe"); err != nil {
+			return err
+		}
+
 		if topUp.Status != common.TopUpStatusPending {
 			return errors.New("充值订单状态错误")
 		}
@@ -95,6 +114,10 @@ func Recharge(referenceId string, customerId string) (err error) {
 	})
 
 	if err != nil {
+		if errors.Is(err, ErrPaymentMethodMismatch) {
+			common.SysLog(fmt.Sprintf("stripe topup payment method mismatch: trade_no=%s, actual=%s", referenceId, topUp.PaymentMethod))
+			return err
+		}
 		common.SysError("topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
 	}
@@ -325,6 +348,10 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			return errors.New("充值订单不存在")
 		}
 
+		if err := ensureTopUpPaymentMethod(topUp, "creem"); err != nil {
+			return err
+		}
+
 		if topUp.Status != common.TopUpStatusPending {
 			return errors.New("充值订单状态错误")
 		}
@@ -336,24 +363,19 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			return err
 		}
 
-		// Creem 直接使用 Amount 作为充值额度（整数）
 		quota = topUp.Amount
 
-		// 构建更新字段，优先使用邮箱，如果邮箱为空则使用用户名
 		updateFields := map[string]interface{}{
 			"quota": gorm.Expr("quota + ?", quota),
 		}
 
-		// 如果有客户邮箱，尝试更新用户邮箱（仅当用户邮箱为空时）
 		if customerEmail != "" {
-			// 先检查用户当前邮箱是否为空
 			var user User
 			err = tx.Where("id = ?", topUp.UserId).First(&user).Error
 			if err != nil {
 				return err
 			}
 
-			// 如果用户邮箱为空，则更新为支付时使用的邮箱
 			if user.Email == "" {
 				updateFields["email"] = customerEmail
 			}
@@ -368,6 +390,10 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 	})
 
 	if err != nil {
+		if errors.Is(err, ErrPaymentMethodMismatch) {
+			common.SysLog(fmt.Sprintf("creem topup payment method mismatch: trade_no=%s, actual=%s", referenceId, topUp.PaymentMethod))
+			return err
+		}
 		common.SysError("creem topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
 	}
@@ -394,6 +420,10 @@ func RechargeWaffo(tradeNo string) (err error) {
 		err := tx.Set("gorm:query_option", "FOR UPDATE").Where(refCol+" = ?", tradeNo).First(topUp).Error
 		if err != nil {
 			return errors.New("充值订单不存在")
+		}
+
+		if err := ensureTopUpPaymentMethod(topUp, "waffo"); err != nil {
+			return err
 		}
 
 		if topUp.Status == common.TopUpStatusSuccess {
@@ -425,6 +455,10 @@ func RechargeWaffo(tradeNo string) (err error) {
 	})
 
 	if err != nil {
+		if errors.Is(err, ErrPaymentMethodMismatch) {
+			common.SysLog(fmt.Sprintf("waffo topup payment method mismatch: trade_no=%s, actual=%s", tradeNo, topUp.PaymentMethod))
+			return err
+		}
 		common.SysError("waffo topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
 	}

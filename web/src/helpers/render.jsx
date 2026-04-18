@@ -22,41 +22,42 @@ import { Modal, Tag, Typography, Avatar } from '@douyinfe/semi-ui';
 import { copy, showSuccess } from './utils';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
 import { visit } from 'unist-util-visit';
-import * as LobeIcons from '@lobehub/icons';
-import {
-  OpenAI,
-  Claude,
-  Gemini,
-  Moonshot,
-  Zhipu,
-  Qwen,
-  DeepSeek,
-  Minimax,
-  Wenxin,
-  Spark,
-  Midjourney,
-  Hunyuan,
-  Cohere,
-  Cloudflare,
-  Ai360,
-  Yi,
-  Jina,
-  Mistral,
-  XAI,
-  Ollama,
-  Doubao,
-  Suno,
-  Xinference,
-  OpenRouter,
-  Dify,
-  Coze,
-  SiliconCloud,
-  FastGPT,
-  Kling,
-  Jimeng,
-  Perplexity,
-  Replicate,
-} from '@lobehub/icons';
+import Ai360 from '@lobehub/icons/es/Ai360';
+import AzureAI from '@lobehub/icons/es/AzureAI';
+import Claude from '@lobehub/icons/es/Claude';
+import Cloudflare from '@lobehub/icons/es/Cloudflare';
+import Cohere from '@lobehub/icons/es/Cohere';
+import Coze from '@lobehub/icons/es/Coze';
+import DeepSeek from '@lobehub/icons/es/DeepSeek';
+import Dify from '@lobehub/icons/es/Dify';
+import Doubao from '@lobehub/icons/es/Doubao';
+import FastGPT from '@lobehub/icons/es/FastGPT';
+import Gemini from '@lobehub/icons/es/Gemini';
+import Grok from '@lobehub/icons/es/Grok';
+import Hunyuan from '@lobehub/icons/es/Hunyuan';
+import Jina from '@lobehub/icons/es/Jina';
+import Jimeng from '@lobehub/icons/es/Jimeng';
+import Kling from '@lobehub/icons/es/Kling';
+import Minimax from '@lobehub/icons/es/Minimax';
+import Midjourney from '@lobehub/icons/es/Midjourney';
+import Mistral from '@lobehub/icons/es/Mistral';
+import Moonshot from '@lobehub/icons/es/Moonshot';
+import Ollama from '@lobehub/icons/es/Ollama';
+import OpenAI from '@lobehub/icons/es/OpenAI';
+import OpenRouter from '@lobehub/icons/es/OpenRouter';
+import Perplexity from '@lobehub/icons/es/Perplexity';
+import Qingyan from '@lobehub/icons/es/Qingyan';
+import Qwen from '@lobehub/icons/es/Qwen';
+import Replicate from '@lobehub/icons/es/Replicate';
+import SiliconCloud from '@lobehub/icons/es/SiliconCloud';
+import Spark from '@lobehub/icons/es/Spark';
+import Suno from '@lobehub/icons/es/Suno';
+import Volcengine from '@lobehub/icons/es/Volcengine';
+import Wenxin from '@lobehub/icons/es/Wenxin';
+import XAI from '@lobehub/icons/es/XAI';
+import Xinference from '@lobehub/icons/es/Xinference';
+import Yi from '@lobehub/icons/es/Yi';
+import Zhipu from '@lobehub/icons/es/Zhipu';
 
 import {
   LayoutDashboard,
@@ -101,6 +102,45 @@ import {
   SiWechat,
   SiX,
 } from 'react-icons/si';
+
+const lobeIconMap = {
+  Ai360,
+  AzureAI,
+  Claude,
+  Cloudflare,
+  Cohere,
+  Coze,
+  DeepSeek,
+  Dify,
+  Doubao,
+  FastGPT,
+  Gemini,
+  Grok,
+  Hunyuan,
+  Jina,
+  Jimeng,
+  Kling,
+  Minimax,
+  Midjourney,
+  Mistral,
+  Moonshot,
+  Ollama,
+  OpenAI,
+  OpenRouter,
+  Perplexity,
+  Qingyan,
+  Qwen,
+  Replicate,
+  SiliconCloud,
+  Spark,
+  Suno,
+  Volcengine,
+  Wenxin,
+  XAI,
+  Xinference,
+  Yi,
+  Zhipu,
+};
 
 // 获取侧边栏Lucide图标组件
 export function getLucideIcon(key, selected = false) {
@@ -430,7 +470,7 @@ export function getLobeHubIcon(iconName, size = 14) {
   // 解析组件路径与点号链式属性
   const segments = String(iconName).split('.');
   const baseKey = segments[0];
-  const BaseIcon = LobeIcons[baseKey];
+  const BaseIcon = lobeIconMap[baseKey];
 
   let IconComponent = undefined;
   let propStartIndex = 1;
@@ -439,7 +479,7 @@ export function getLobeHubIcon(iconName, size = 14) {
     IconComponent = BaseIcon[segments[1]];
     propStartIndex = 2;
   } else {
-    IconComponent = LobeIcons[baseKey];
+    IconComponent = lobeIconMap[baseKey];
     propStartIndex = 1;
   }
 
