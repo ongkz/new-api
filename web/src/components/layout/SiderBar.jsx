@@ -254,7 +254,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         targetId: SIDEBAR_LOG_GUIDE_ID,
         title: '使用日志',
         description:
-          '可以查看到宝宝自己调用 API 相关记录，报错不扣费。生成失败会有具体报错记录。',
+          '可在此查看 API 调用记录、状态和错误信息，便于定位请求失败原因与使用情况。',
         placement: 'right',
         maxWidth: 360,
       });
@@ -270,7 +270,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         targetId: SIDEBAR_TOPUP_GUIDE_ID,
         title: '钱包管理',
         description:
-          '可以使用支付宝在线支付，充值额度。也可以到首页往下翻找找到闲鱼充值处，根据方法进行微信充值。首页还有售后群相关，请务必加个群哦。',
+          '可在此查看余额、充值入口和订单记录。可用支付方式以当前站点配置为准，具体帮助信息请参考首页或文档页面。',
         placement: 'right',
         maxWidth: 380,
       });
@@ -281,7 +281,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
           targetId: SIDEBAR_TOPUP_GUIDE_ID,
           title: '邀请奖励',
           description:
-            '该页面打开后往下翻，有专属自己的邀请链接哦。邀请一人获得100额度，发宣传帖子有额外奖励。但请勿注册多个小号刷奖励，这会被系统查到永久封号！',
+            '本页下方提供邀请链接和奖励说明；具体奖励规则以系统当前配置为准，请勿通过异常注册或滥用方式获取奖励。',
           placement: 'right',
           maxWidth: 380,
         });

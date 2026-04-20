@@ -85,9 +85,9 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
       nextGuides.push({
         id: HOME_NAV_GUIDE_ID,
         targetId: HOME_NAV_GUIDE_ID,
-        title: '首页设置教程',
+        title: '查看配置文档',
         description:
-          '如果不知道该如何配置 api，请点击首页中的【设置教程】跳转到教程文档。同时还有售后群号在首页，群内客服24小时解答。',
+          '如需了解系统配置方法，可通过首页中的【设置教程】进入文档页面，查看接入说明、配置步骤和常见问题。',
         placement: 'bottom',
         maxWidth: isMobile ? 320 : 380,
         priority: 1000,
@@ -100,7 +100,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
         targetId: MODEL_MARKET_GUIDE_ID,
         title: '模型广场',
         description:
-          '这里可以查到所有模型与具体价格哦，本站点1r=站内100额度，宝宝们自行换算。首页可以看到售后群，我们每周会放模型打折投票与不定期福利。',
+          '可在此查看模型列表、可用性与定价信息，用于比较模型能力并评估使用成本。',
         placement: 'bottom',
         maxWidth: isMobile ? 300 : 360,
         priority: 300,

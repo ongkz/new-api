@@ -79,7 +79,7 @@ const EditTokenModal = (props) => {
               id: ADD_TOKEN_BASICS_GUIDE_ID,
               title: '如何创建令牌',
               description:
-                '宝宝请注意，令牌名称随意填写！分组是一定要选的，各分组的区别上面都有写哦，如果不知道选哪个好，那就直接选择“千岛酱”。永不过期与无限额度一定要开启，其他的基本不用动。',
+                '令牌名称可按用途自定义。创建前请先选择分组，各分组差异可参考选项说明。若无特殊需求，可先选择说明最匹配的可用分组；“永不过期”和“无限额度”等选项请根据安全与配额策略按需配置。',
               placement: isMobile ? 'bottom' : 'right',
               maxWidth: isMobile ? 300 : 360,
             },
