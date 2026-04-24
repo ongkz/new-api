@@ -1470,13 +1470,6 @@ function renderPriceSimpleCore({
       }
     }
 
-    if (isSystemPromptOverride) {
-      segments.push({
-        tone: 'primary',
-        text: i18next.t('系统提示覆盖'),
-      });
-    }
-
     return segments;
   }
 
@@ -1563,11 +1556,7 @@ function renderPriceSimpleCore({
 
     parts.push(getGroupRatioText(groupRatio, user_group_ratio));
 
-    let result = joinBillingSummary(parts);
-    if (isSystemPromptOverride) {
-      result += '\n\r' + i18next.t('系统提示覆盖');
-    }
-    return result;
+    return joinBillingSummary(parts);
   }
 
   const parts = [];
@@ -1612,10 +1601,6 @@ function renderPriceSimpleCore({
     cacheCreationRatio1h: cacheCreationRatio1h,
     imageRatio: imageRatio,
   });
-
-  if (isSystemPromptOverride) {
-    result += '\n\r' + i18next.t('系统提示覆盖');
-  }
 
   return result;
 }
