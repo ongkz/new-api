@@ -10,6 +10,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"
@@ -83,6 +84,9 @@ func createRootAccountIfNeed() error {
 			AccessToken: nil,
 			Quota:       100000000,
 		}
+		rootUser.SetSetting(dto.UserSetting{
+			RecordIpLog: true,
+		})
 		DB.Create(&rootUser)
 	}
 	return nil
