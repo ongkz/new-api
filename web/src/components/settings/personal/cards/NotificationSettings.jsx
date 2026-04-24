@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useRef, useEffect, useState, useContext } from 'react';
+import React, { useRef, useEffect, useState, useContext, useMemo } from 'react';
 import {
   Button,
   Typography,
@@ -48,6 +48,12 @@ import {
   mergeAdminConfig,
   useSidebar,
 } from '../../../../hooks/common/useSidebar';
+import {
+  useOnboardingScope,
+  useOnboardingTarget,
+} from '../../../../hooks/common/useOnboarding';
+
+const RECORD_IP_LOG_GUIDE_ID = 'record_ip_log_privacy';
 
 const NotificationSettings = ({
   t,
@@ -59,6 +65,7 @@ const NotificationSettings = ({
   const [statusState] = useContext(StatusContext);
   const [userState] = useContext(UserContext);
   const isAdminOrRoot = (userState?.user?.role || 0) >= 10;
+  const recordIpLogTargetProps = useOnboardingTarget(RECORD_IP_LOG_GUIDE_ID);
 
   // 左侧边栏设置相关状态
   const [sidebarLoading, setSidebarLoading] = useState(false);
@@ -106,6 +113,25 @@ const NotificationSettings = ({
 
   // 使用useSidebar钩子获取刷新方法
   const { refreshUserConfig } = useSidebar();
+  const recordIpLogGuides = useMemo(
+    () =>
+      activeTabKey === 'privacy'
+        ? [
+            {
+              id: RECORD_IP_LOG_GUIDE_ID,
+              title: 'IP记录说明',
+              description:
+                '创建令牌处，已默认开启“IP记录”。仅宝宝你本人可查看到详细IP。站点站长与管理们无法查看到！主要用于对照使用记录，是否存在被盗用等情况。如果出现类似情况，请直接删除令牌，重新创建。并修改自己的账号密码，不要与其他站点的密码相同！关闭IP记录后，任何问题自行负责。\nps：开启魔法会与平常使用的IP不同，可以开了魔法后自己去一些网站测试具体IP，再对照。',
+              placement: 'top',
+              maxWidth: 420,
+              priority: 1,
+            },
+          ]
+        : [],
+    [activeTabKey],
+  );
+
+  useOnboardingScope(recordIpLogGuides);
 
   // 左侧边栏设置处理函数
   const handleSectionChange = (sectionKey) => {
@@ -784,16 +810,18 @@ const NotificationSettings = ({
               itemKey='privacy'
             >
               <div className='py-4'>
-                <Form.Switch
-                  field='recordIpLog'
-                  label={t('记录请求与错误日志IP')}
-                  checkedText={t('开')}
-                  uncheckedText={t('关')}
-                  onChange={(value) => handleFormChange('recordIpLog', value)}
-                  extraText={t(
-                    '开启后，仅"消费"和"错误"日志将记录您的客户端IP地址',
-                  )}
-                />
+                <div {...recordIpLogTargetProps}>
+                  <Form.Switch
+                    field='recordIpLog'
+                    label={t('记录请求与错误日志IP')}
+                    checkedText={t('开')}
+                    uncheckedText={t('关')}
+                    onChange={(value) => handleFormChange('recordIpLog', value)}
+                    extraText={t(
+                      '开启后，仅"消费"和"错误"日志将记录您的客户端IP地址',
+                    )}
+                  />
+                </div>
               </div>
             </TabPane>
 
