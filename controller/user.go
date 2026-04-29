@@ -992,6 +992,10 @@ func EmailBind(c *gin.Context) {
 		common.ApiError(c, errors.New("invalid request"))
 		return
 	}
+	if !common.IsQQEmailAllowed(email) {
+		common.ApiError(c, errors.New("QQ 邮箱地址只能使用纯数字 QQ 号，不能包含字母或其他符号。"))
+		return
+	}
 	if !common.VerifyCodeWithKey(email, code, common.EmailVerificationPurpose) {
 		common.ApiErrorI18n(c, i18n.MsgUserVerificationCodeError)
 		return

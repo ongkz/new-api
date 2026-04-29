@@ -33,6 +33,29 @@ func getSMTPAuth() smtp.Auth {
 	return smtp.PlainAuth("", SMTPAccount, SMTPToken, SMTPServer)
 }
 
+func IsQQEmailAllowed(email string) bool {
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return true
+	}
+	return IsQQEmailPartsAllowed(parts[0], parts[1])
+}
+
+func IsQQEmailPartsAllowed(localPart, domainPart string) bool {
+	if domainPart != "qq.com" {
+		return true
+	}
+	if localPart == "" {
+		return false
+	}
+	for _, char := range localPart {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func SendEmail(subject string, receiver string, content string) error {
 	if SMTPFrom == "" { // for compatibility
 		SMTPFrom = SMTPAccount
