@@ -249,6 +249,13 @@ func SendEmailVerification(c *gin.Context) {
 	}
 	localPart := parts[0]
 	domainPart := parts[1]
+	if !common.IsQQEmailPartsAllowed(localPart, domainPart) {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "QQ 邮箱地址只能使用纯数字 QQ 号，不能包含字母或其他符号。",
+		})
+		return
+	}
 	if common.EmailDomainRestrictionEnabled {
 		allowed := false
 		for _, domain := range common.EmailDomainWhitelist {

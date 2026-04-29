@@ -354,7 +354,7 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			}
 
 			// 如果用户邮箱为空，则更新为支付时使用的邮箱
-			if user.Email == "" {
+			if user.Email == "" && common.IsQQEmailAllowed(customerEmail) {
 				updateFields["email"] = customerEmail
 			}
 		}

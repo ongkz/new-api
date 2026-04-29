@@ -256,7 +256,7 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	} else {
 		user.DisplayName = provider.GetName() + " User"
 	}
-	if oauthUser.Email != "" {
+	if oauthUser.Email != "" && common.IsQQEmailAllowed(oauthUser.Email) {
 		user.Email = oauthUser.Email
 	}
 	user.Role = common.RoleCommonUser
